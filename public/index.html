@@ -1,0 +1,1283 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>SOBREAVISO RADIOLOGIA</title>
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'Inter', 'Segoe UI', sans-serif; background: #f0f4f8; min-height: 100vh; padding-bottom: 20px; }
+
+        .app-header { background: linear-gradient(135deg, #1565c0 0%, #0d47a1 100%); padding: 16px 16px 20px; color: white; }
+        .header-inner { max-width: 700px; margin: 0 auto; }
+        .header-top-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
+        .header-brand { display: flex; align-items: center; gap: 12px; }
+        .header-logo { width: 52px; height: 52px; border-radius: 12px; background: rgba(255,255,255,0.15); display: flex; align-items: center; justify-content: center; font-size: 1.8rem; flex-shrink: 0; }
+        .header-title { font-size: 1.2rem; font-weight: 700; line-height: 1.2; }
+        .header-subtitle { font-size: 0.7rem; opacity: 0.75; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 2px; }
+        .header-badges { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+        .badge-user-pill { background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.3); border-radius: 20px; padding: 5px 10px; font-size: 0.75rem; font-weight: 600; color: white; display: none; align-items: center; gap: 5px; }
+        #backup-status { border-radius: 20px; padding: 5px 10px; font-size: 0.75rem; font-weight: 600; color: white; display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
+        #backup-status.ok      { background: #2e7d32; }
+        #backup-status.saving  { background: #e65100; }
+        #backup-status.error   { background: #c62828; }
+        #backup-status.offline { background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.3); }
+
+        .content-wrap { max-width: 700px; margin: 0 auto; padding: 14px 12px; }
+
+        .btn-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 14px; }
+        .btn-action { background: white; border: 1.5px solid #e8edf2; border-radius: 12px; padding: 10px 4px 8px; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 5px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); transition: all .15s; }
+        .btn-action:active { transform: scale(0.96); background: #f0f4f8; }
+        .btn-action .bi { font-size: 1.35rem; line-height: 1; }
+        .btn-action .bl { font-size: 0.62rem; font-weight: 600; color: #455a64; text-align: center; text-transform: uppercase; letter-spacing: 0.3px; line-height: 1.2; }
+        .c-blue .bi{color:#1565c0} .c-green .bi{color:#2e7d32} .c-orange .bi{color:#e65100} .c-teal .bi{color:#00695c}
+        .c-violet .bi{color:#4527a0} .c-pink .bi{color:#ad1457} .c-gray .bi{color:#37474f} .c-purple .bi{color:#6a1b9a}
+
+        .prof-card { background: white; border-radius: 12px; border: 1.5px solid #e8edf2; padding: 11px 14px; margin-bottom: 10px; display: flex; align-items: center; gap: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
+        .prof-card span { font-size: 1.1rem; color: #1565c0; flex-shrink: 0; }
+        .prof-card input { flex: 1; border: none; outline: none; font-size: 0.9rem; font-family: inherit; color: #263238; background: transparent; }
+        .prof-card input::placeholder { color: #90a4ae; }
+
+        .mes-card { background: white; border-radius: 12px; border: 1.5px solid #e8edf2; padding: 11px 14px; margin-bottom: 10px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
+        .mes-card .mi { font-size: 1.1rem; color: #1565c0; flex-shrink: 0; }
+        .mes-card select { flex: 1; min-width: 120px; border: none; outline: none; font-size: 0.9rem; font-family: inherit; color: #263238; background: transparent; cursor: pointer; }
+        .btn-mes-new { background: #1565c0; color: white; border: none; padding: 7px 12px; border-radius: 8px; cursor: pointer; font-size: 0.75rem; font-weight: 600; white-space: nowrap; font-family: inherit; }
+        .btn-mes-del { background: white; color: #c62828; border: 1.5px solid #ef9a9a; padding: 7px 9px; border-radius: 8px; cursor: pointer; font-size: 0.85rem; }
+
+        .escalas-card { background: #fffde7; border: 1.5px solid #ffe082; border-radius: 12px; padding: 12px 14px; margin-bottom: 14px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
+        .esc-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+        .esc-title { display: flex; align-items: center; gap: 7px; font-size: 0.75rem; font-weight: 700; color: #5d4037; text-transform: uppercase; letter-spacing: 0.4px; }
+        .esc-badge { background: #ff8f00; color: white; border-radius: 50%; width: 20px; height: 20px; font-size: 0.68rem; font-weight: 700; display: flex; align-items: center; justify-content: center; }
+        .btn-toggle-esc { background: #4e342e; color: white; border: none; padding: 6px 12px; border-radius: 8px; cursor: pointer; font-size: 0.72rem; font-weight: 600; font-family: inherit; }
+        .escala-item { display: grid; grid-template-columns: 1fr 90px 1fr 90px 36px; gap: 8px; margin-bottom: 10px; align-items: flex-end; border-bottom: 1px solid #ffe082; padding-bottom: 10px; }
+        @media (max-width: 599px) { .escala-item { grid-template-columns: 1fr 1fr; gap: 6px; } .escala-item > button { grid-column: 1 / -1; justify-self: start; } }
+        .form-group { display: flex; flex-direction: column; gap: 4px; }
+        .form-group label { font-size: 0.68rem; font-weight: 700; color: #6d4c41; text-transform: uppercase; letter-spacing: 0.3px; }
+        .form-group input, .form-group select { padding: 8px 10px; border: 1.5px solid #ffe082; border-radius: 8px; font-size: 0.85rem; font-family: inherit; background: white; color: #263238; outline: none; }
+        .form-group input:focus { border-color: #ff8f00; }
+        .btn-add-esc { background: #4e342e; color: white; border: none; padding: 8px 14px; border-radius: 8px; cursor: pointer; font-size: 0.75rem; font-weight: 600; margin-top: 6px; font-family: inherit; }
+
+        .tabs-bar { display: flex; flex-wrap: wrap; border-bottom: 2px solid #e8edf2; margin-bottom: 14px; gap: 2px; }
+        .tab-btn { padding: 10px 14px; border: none; background: none; cursor: pointer; font-size: 0.85rem; font-weight: 600; color: #78909c; border-bottom: 3px solid transparent; margin-bottom: -2px; font-family: inherit; transition: color .15s; }
+        .tab-btn.active { color: #1565c0; border-bottom-color: #1565c0; }
+        .tab-btn-new { border-bottom: none !important; border-radius: 8px !important; padding: 7px 11px !important; font-size: 0.75rem !important; margin-bottom: 4px !important; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+
+        .form-card { background: white; border-radius: 12px; border: 1.5px solid #e8edf2; padding: 14px; margin-bottom: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
+        .form-card .form-group label { color: #546e7a; }
+        .form-card .form-group input, .form-card .form-group select { border: 1.5px solid #e0e7ef; border-radius: 8px; padding: 9px 11px; font-size: 0.88rem; }
+        .form-card .form-group input:focus { border-color: #1565c0; }
+        .grid-inputs { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; }
+        .btn-save { background: #2e7d32; color: white; border: none; padding: 10px 18px; border-radius: 9px; cursor: pointer; font-size: 0.88rem; font-weight: 600; margin-top: 12px; font-family: inherit; }
+        .btn-cancel-form { background: #eceff1; color: #546e7a; border: none; padding: 10px 14px; border-radius: 9px; cursor: pointer; font-size: 0.88rem; font-weight: 600; margin-top: 12px; margin-left: 8px; font-family: inherit; display: none; }
+
+        .tbl-toggle-bar { display: flex; justify-content: space-between; align-items: center; margin: 14px 0 8px; }
+        .tbl-toggle-label { font-size: 0.78rem; font-weight: 700; color: #455a64; }
+        .btn-tbl-toggle { background: #1565c0; color: white; border: none; padding: 5px 12px; border-radius: 7px; cursor: pointer; font-size: 0.72rem; font-weight: 600; font-family: inherit; }
+
+        .tbl-wrap { overflow-x: auto; border-radius: 10px; border: 1.5px solid #e8edf2; }
+        table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
+        th { background: #1565c0; color: white; padding: 9px 8px; text-align: left; font-weight: 600; font-size: 0.72rem; text-transform: uppercase; }
+        td { border-bottom: 1px solid #f0f4f8; padding: 8px; color: #37474f; }
+        tr:last-child td { border-bottom: none; }
+        tr:hover td { background: #f7fafc; }
+        tr.aberta td { background: #fff8e1; }
+        .btn-mini { padding: 4px 8px; border: none; border-radius: 5px; cursor: pointer; color: white; font-size: 0.68rem; font-weight: 600; }
+
+
+        .resumo-card { background: white; border-radius: 12px; border: 1.5px solid #e8edf2; padding: 12px 14px; margin-top: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
+        .resumo-card h4 { font-size: 0.82rem; font-weight: 700; color: #1565c0; margin-bottom: 8px; }
+        .resumo-row { display: flex; justify-content: space-between; padding: 5px 0; border-bottom: 1px solid #f0f4f8; font-size: 0.8rem; color: #455a64; }
+        .resumo-row:last-child { border: none; font-weight: 700; color: #1565c0; }
+        .resumo-total { border: 2px solid #1565c0 !important; }
+        .resumo-total h4 { font-size: 0.9rem !important; }
+
+        .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center; padding: 16px; }
+        .modal-overlay.active { display: flex; }
+        .modal-box { background: white; border-radius: 16px; padding: 22px; max-width: 440px; width: 100%; box-shadow: 0 20px 60px rgba(0,0,0,0.25); max-height: 90vh; overflow-y: auto; }
+        .modal-box h3 { margin: 0 0 10px; color: #e65100; font-size: 1rem; }
+        .modal-box.danger h3 { color: #c62828; }
+        .modal-box p { margin: 0 0 14px; color: #546e7a; font-size: 0.86rem; line-height: 1.55; }
+        .modal-actions { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; margin-top: 4px; }
+        .modal-actions button { padding: 9px 16px; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 0.85rem; font-family: inherit; }
+
+        .hist-lista { max-height: 220px; overflow-y: auto; border: 1.5px solid #e8edf2; border-radius: 10px; margin-bottom: 14px; }
+        .hist-item { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-bottom: 1px solid #f0f4f8; cursor: pointer; }
+        .hist-item:hover { background: #f0f7ff; }
+        .hist-item input[type=checkbox] { width: 16px; height: 16px; cursor: pointer; accent-color: #1565c0; flex-shrink: 0; }
+        .hist-item-title { font-weight: 700; font-size: 0.86rem; color: #1565c0; }
+        .hist-item-sub { font-size: 0.72rem; color: #78909c; margin-top: 2px; }
+
+        .filtro-opcoes { display: flex; flex-direction: column; gap: 7px; margin-bottom: 14px; max-height: 200px; overflow-y: auto; }
+        .filtro-opcao { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border: 1.5px solid #e8edf2; border-radius: 8px; cursor: pointer; }
+        .filtro-opcao:hover { background: #f0f7ff; }
+        .filtro-opcao input[type=checkbox] { width: 17px; height: 17px; cursor: pointer; accent-color: #1565c0; flex-shrink: 0; }
+        .filtro-opcao label { cursor: pointer; font-size: 0.85rem; color: #37474f; flex: 1; }
+        .filtro-tipo-btn { display: flex; gap: 8px; margin-bottom: 12px; }
+        .filtro-tipo-btn button { flex: 1; padding: 8px; border: 2px solid #e8edf2; border-radius: 8px; background: white; cursor: pointer; font-size: 0.8rem; font-weight: 600; color: #546e7a; font-family: inherit; }
+        .filtro-tipo-btn button.ativo { border-color: #1565c0; background: #e3f2fd; color: #1565c0; }
+
+        .user-card { display: flex; align-items: flex-start; gap: 10px; padding: 11px 12px; border: 1.5px solid #e8edf2; border-radius: 10px; margin-bottom: 8px; }
+        .user-avatar { width: 38px; height: 38px; border-radius: 50%; background: linear-gradient(135deg,#1565c0,#0d47a1); color: white; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 1rem; flex-shrink: 0; }
+        .user-info { flex: 1; }
+        .user-nome { font-weight: 700; font-size: 0.88rem; color: #1565c0; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+        .user-sub { font-size: 0.73rem; color: #78909c; margin-top: 2px; }
+        .role-badge { font-size: 0.68rem; padding: 2px 8px; border-radius: 10px; font-weight: 700; }
+        .badge-admin { background: #fce4ec; color: #c2185b; }
+        .badge-user  { background: #e0f2f1; color: #00695c; }
+        .contact-btns { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 7px; }
+        .btn-contact { padding: 5px 12px; border: none; border-radius: 6px; cursor: pointer; font-size: 0.72rem; font-weight: 700; color: white; text-decoration: none; display: inline-flex; align-items: center; gap: 4px; font-family: inherit; }
+        .btn-wa { background: #25d366; }
+        .btn-em { background: #1a73e8; }
+
+        #login-screen { display: none; position: fixed; inset: 0; background: linear-gradient(135deg,#1565c0,#0d47a1); z-index: 9999; align-items: center; justify-content: center; padding: 20px; }
+        #login-screen.active { display: flex; }
+        .login-box { background: white; border-radius: 20px; padding: 30px 24px; max-width: 360px; width: 100%; box-shadow: 0 24px 64px rgba(0,0,0,0.35); }
+        .login-box h2 { margin: 0 0 4px; color: #1565c0; font-size: 1.3rem; text-align: center; font-weight: 700; }
+        .login-sub { margin: 0 0 22px; color: #78909c; font-size: 0.82rem; text-align: center; }
+        .lf { margin-bottom: 12px; }
+        .lf label { display: block; font-size: 0.75rem; font-weight: 700; color: #546e7a; margin-bottom: 5px; text-transform: uppercase; }
+        .lf input { width: 100%; padding: 11px 12px; border: 1.5px solid #e0e7ef; border-radius: 10px; font-size: 0.92rem; font-family: inherit; outline: none; }
+        .lf input:focus { border-color: #1565c0; }
+        .btn-lp { width: 100%; padding: 12px; background: #1565c0; color: white; border: none; border-radius: 10px; font-size: 0.95rem; font-weight: 700; cursor: pointer; margin-top: 6px; font-family: inherit; }
+        .btn-ls { width: 100%; padding: 10px; background: transparent; color: #1565c0; border: 1.5px solid #1565c0; border-radius: 10px; font-size: 0.86rem; font-weight: 600; cursor: pointer; margin-top: 8px; font-family: inherit; }
+        .login-err { color: #c62828; font-size: 0.8rem; margin-top: 6px; text-align: center; display: none; }
+        .login-rem { display: flex; align-items: center; gap: 8px; margin: 8px 0 4px; font-size: 0.82rem; color: #546e7a; cursor: pointer; }
+        .login-rem input { width: 16px; height: 16px; cursor: pointer; accent-color: #1565c0; }
+        .mf { margin-bottom: 12px; }
+        .mf label { display: block; font-size: 0.75rem; font-weight: 700; color: #546e7a; margin-bottom: 5px; }
+        .mf input { width: 100%; padding: 10px 12px; border: 1.5px solid #e0e7ef; border-radius: 9px; font-size: 0.9rem; font-family: inherit; outline: none; }
+        .mf input:focus { border-color: #1565c0; }
+    
+    </style>
+</head>
+<body>
+
+
+<div id="login-screen">
+    <div class="login-box">
+        <h2>📡 SOBREAVISO</h2>
+        <p class="login-sub" id="login-subtitle">Radiologia</p>
+        <div id="login-form-area">
+            <div class="lf"><label>E-mail</label><input type="email" id="login-email" placeholder="seu@email.com"></div>
+            <div class="lf"><label>Senha</label><input type="password" id="login-senha" placeholder="••••••" onkeydown="if(event.key==='Enter')fazerLogin()"></div>
+            <label class="login-rem"><input type="checkbox" id="login-lembrar"> Lembrar e-mail e senha</label>
+            <p class="login-err" id="login-erro">E-mail ou senha incorretos.</p>
+            <button class="btn-lp" onclick="fazerLogin()">Entrar</button>
+            <button class="btn-ls" onclick="mostrarFormCadastro()">Criar conta</button>
+        </div>
+        <div id="cadastro-form-area" style="display:none">
+            <div class="lf"><label>Nome completo</label><input type="text" id="cad-nome" placeholder="Seu nome"></div>
+            <div class="lf"><label>E-mail</label><input type="email" id="cad-email" placeholder="seu@email.com"></div>
+            <div class="lf"><label>WhatsApp</label><input type="tel" id="cad-whatsapp" placeholder="(47) 99999-9999"></div>
+            <div class="lf"><label>Senha</label><input type="password" id="cad-senha" placeholder="Mínimo 4 caracteres"></div>
+            <p class="login-err" id="cad-erro">Preencha todos os campos.</p>
+            <button class="btn-lp" onclick="fazerCadastro()">Cadastrar</button>
+            <button class="btn-ls" onclick="mostrarFormLogin()">Já tenho conta</button>
+        </div>
+    </div>
+</div>
+
+<div class="app-header">
+    <div class="header-inner">
+        <div class="header-top-row">
+            <div class="header-brand">
+                <div class="header-logo">🩻</div>
+                <div>
+                    <div class="header-title">SOBREAVISO RADIOLOGIA</div>
+                    <div class="header-subtitle">Sistema de Controle de Plantão</div>
+                </div>
+            </div>
+            <div class="header-badges">
+                <div id="user-badge" class="badge-user-pill"></div>
+                <span id="backup-status" class="offline">☁️ Drive</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="content-wrap">
+    <div class="btn-grid">
+        <button class="btn-action c-blue" onclick="conectarGDrive()"><span class="bi">☁️</span><span class="bl">Conectar Drive</span></button>
+        <button class="btn-action c-green" onclick="restaurarDoDrive()"><span class="bi">⬇️</span><span class="bl">Rest. Drive</span></button>
+        <button class="btn-action c-orange" onclick="fazerBackupLocal()"><span class="bi">💾</span><span class="bl">Backup</span></button>
+        <button class="btn-action c-teal" onclick="document.getElementById('fileInput').click()"><span class="bi">📂</span><span class="bl">Importar</span></button>
+        <button class="btn-action c-violet" onclick="abrirFiltroRelatorio('print')"><span class="bi">📊</span><span class="bl">Relatório</span></button>
+        <button class="btn-action c-pink" onclick="imprimirTodasFichas()"><span class="bi">📋</span><span class="bl">Fichas</span></button>
+        <button class="btn-action c-gray" onclick="abrirHistorico()"><span class="bi">🕐</span><span class="bl">Histórico</span></button>
+        <button class="btn-action c-purple" onclick="abrirUsuarios()"><span class="bi">👤</span><span class="bl">Usuários</span></button>
+        <input type="file" id="fileInput" style="display:none" onchange="restaurarBackup(this)">
+    </div>
+
+    <div class="prof-card">
+        <span>👤</span>
+        <input type="text" id="userName" placeholder="Nome do profissional" oninput="salvarDados()">
+    </div>
+
+    <div class="mes-card">
+        <span class="mi">📅</span>
+        <select id="sel-mes" onchange="trocarMes()"></select>
+        <button class="btn-mes-new" onclick="novoMes()">+ Novo Mês</button>
+        <button class="btn-mes-del" onclick="excluirMesAtual()">🗑</button>
+    </div>
+
+    <div class="escalas-card">
+        <div class="esc-header">
+            <div class="esc-title">📋 Escalas de Sobreaviso <span class="esc-badge" id="escala-count">0</span></div>
+            <button class="btn-toggle-esc" id="btn-toggle-esc" onclick="toggleEscalas()">▶ Mostrar</button>
+        </div>
+        <div id="escalas-body" style="display:none">
+            <div id="lista-escalas"></div>
+            <button class="btn-add-esc" onclick="addEscala()">+ Adicionar Escala</button>
+        </div>
+    </div>
+
+    <div class="tabs-bar">
+        <button class="tab-btn active" onclick="tab(event,'exames')">📋 Exames</button>
+        <button class="tab-btn" onclick="tab(event,'corridas')">🚗 Corridas</button>
+        <button class="tab-btn" onclick="tab(event,'resumo')">📊 Resumo</button>
+        <button class="tab-btn tab-btn-new" onclick="tab(event,'corridas')" style="margin-left:auto;background:#1565c0;color:white;border-radius:8px;padding:7px 12px;font-size:0.78rem">🚗 Nova Corrida</button>
+        <button class="tab-btn tab-btn-new" onclick="tab(event,'exames')" style="background:#2e7d32;color:white;border-radius:8px;padding:7px 12px;font-size:0.78rem">➕ Novo Exame</button>
+    </div>
+
+    <div id="exames" class="tab-content active">
+        <div class="form-card">
+            <input type="hidden" id="ex-id">
+            <div class="grid-inputs">
+                <div class="form-group"><label>Data</label><input type="date" id="ex-data"></div>
+                <div class="form-group"><label>Horário</label><input type="time" id="ex-hora"></div>
+                <div class="form-group"><label>Setor</label><input type="text" id="ex-setor" oninput="this.value=this.value.toUpperCase()"></div>
+                <div class="form-group"><label>Exame</label><input type="text" id="ex-nome" oninput="this.value=this.value.toUpperCase()"></div>
+                <div class="form-group"><label>Paciente</label><input type="text" id="ex-pac" oninput="this.value=this.value.toUpperCase()"></div>
+            </div>
+            <button id="btn-save-ex" class="btn-save" onclick="addExame()">Salvar Exame</button>
+            <button id="btn-cancel-ex" class="btn-cancel-form" onclick="limparCamposExame(true)">Cancelar</button>
+        </div>
+        <div class="tbl-toggle-bar">
+            <span class="tbl-toggle-label">📋 Exames registrados (<span id="exames-count">0</span>)</span>
+            <button class="btn-tbl-toggle" id="btn-toggle-tbl-ex" onclick="toggleTabelaExames()">▶ Mostrar</button>
+        </div>
+        <div id="tbl-exames-wrapper" style="display:none">
+            <div class="tbl-wrap">
+                <table id="tbl-exames">
+                    <thead><tr><th>Data</th><th>Hora</th><th>Setor</th><th>Exame</th><th>Paciente</th><th>Ações</th></tr></thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div id="corridas" class="tab-content">
+        <div class="form-card">
+            <input type="hidden" id="co-id">
+            <div class="grid-inputs">
+                <div class="form-group"><label>Data</label><input type="date" id="co-data"></div>
+                <div class="form-group"><label>Entrada</label><input type="time" id="co-in"></div>
+                <div class="form-group"><label>Saída</label><input type="time" id="co-out"></div>
+                <div class="form-group"><label>KM</label><input type="number" step="0.1" id="co-km"></div>
+                <div class="form-group"><label>Setor</label><input type="text" id="co-setor" oninput="this.value=this.value.toUpperCase()"></div>
+            </div>
+            <button id="btn-save-co" class="btn-save" onclick="addCorrida()">Salvar Corrida</button>
+            <button id="btn-cancel-co" class="btn-cancel-form" onclick="limparCamposCorrida()">Cancelar</button>
+        </div>
+        <div class="tbl-wrap" style="margin-top:4px">
+            <table id="tbl-corridas">
+                <thead><tr><th>Data</th><th>Entrada</th><th>Saída</th><th>Tempo</th><th>KM</th><th>Setor</th><th>Ações</th></tr></thead>
+                <tbody></tbody>
+            </table>
+        </div>
+    </div>
+
+    <div id="resumo" class="tab-content"><div id="resumo-conteudo"></div></div>
+</div>
+
+
+
+<!-- Modais -->
+<div class="modal-overlay" id="modal-corrida-aberta">
+    <div class="modal-box"><h3>⚠️ Corrida sem horário de saída</h3>
+    <p>Esta corrida está <b>em aberto</b>. Deseja salvar assim mesmo?</p>
+    <div class="modal-actions">
+        <button onclick="fecharModal('modal-corrida-aberta')" style="background:#eceff1;color:#546e7a">Cancelar</button>
+        <button onclick="confirmarCorridaAberta()" style="background:#2e7d32;color:white">Sim, salvar</button>
+    </div></div>
+</div>
+
+<div class="modal-overlay" id="modal-del">
+    <div class="modal-box danger"><h3>🗑️ Confirmar exclusão</h3>
+    <p id="modal-del-msg">Tem certeza?</p>
+    <div class="modal-actions">
+        <button onclick="fecharModal('modal-del')" style="background:#eceff1;color:#546e7a">Cancelar</button>
+        <button id="modal-del-confirm" style="background:#c62828;color:white">Excluir</button>
+    </div></div>
+</div>
+
+<div class="modal-overlay" id="modal-hist">
+    <div class="modal-box" style="max-width:500px"><h3 style="color:#1565c0">🗂️ Histórico de Meses</h3>
+    <p>Selecione um ou mais meses:</p>
+    <div class="hist-lista" id="hist-lista"></div>
+    <div class="modal-actions">
+        <button onclick="fecharModal('modal-hist')" style="background:#eceff1;color:#546e7a">Fechar</button>
+        <button onclick="relatorioHistorico('print')" style="background:#4527a0;color:white">🖨️ Relatório</button>
+        <button onclick="relatorioHistorico('pdf')" style="background:#c62828;color:white">📄 PDF</button>
+    </div></div>
+</div>
+
+<div class="modal-overlay" id="modal-filtro-rel">
+    <div class="modal-box" style="max-width:460px"><h3 style="color:#1565c0" id="modal-filtro-titulo">📄 Gerar Relatório</h3>
+    <div class="filtro-tipo-btn">
+        <button id="btn-filtro-mes" class="ativo" onclick="alternarFiltroTipo('mes')">📅 Mês completo</button>
+        <button id="btn-filtro-esc" onclick="alternarFiltroTipo('escala')">📋 Por escala</button>
+    </div>
+    <div id="filtro-mes-area"><p>Relatório completo do mês ativo.</p></div>
+    <div id="filtro-esc-area" style="display:none">
+        <p>Selecione uma ou mais escalas:</p>
+        <div class="filtro-opcoes" id="filtro-escalas-lista"></div>
+    </div>
+    <div style="margin-bottom:14px;padding:10px;background:#f8f9fa;border-radius:10px;border:1.5px solid #e8edf2">
+        <label style="font-size:0.75rem;font-weight:700;color:#546e7a;display:block;margin-bottom:6px">📬 Data de entrega (opcional)</label>
+        <input type="date" id="filtro-data-entrega" style="width:100%;padding:9px;border:1.5px solid #e0e7ef;border-radius:8px;font-size:0.88rem;font-family:inherit">
+    </div>
+    <div class="modal-actions">
+        <button onclick="fecharModal('modal-filtro-rel')" style="background:#eceff1;color:#546e7a">Cancelar</button>
+        <button id="btn-filtro-gerar" onclick="gerarComFiltro()" style="background:#c62828;color:white">Gerar</button>
+    </div></div>
+</div>
+
+<div class="modal-overlay" id="modal-rest-drive">
+    <div class="modal-box danger"><h3>⬇️ Restaurar do Google Drive</h3>
+    <p>Irá <b>sobrescrever os dados locais</b>. Tem certeza?</p>
+    <div class="modal-actions">
+        <button onclick="fecharModal('modal-rest-drive')" style="background:#eceff1;color:#546e7a">Cancelar</button>
+        <button onclick="confirmarRestaurarDrive()" style="background:#c62828;color:white">Sim, restaurar</button>
+    </div></div>
+</div>
+
+<div class="modal-overlay" id="modal-novo-mes">
+    <div class="modal-box"><h3 style="color:#1565c0">📅 Novo mês</h3>
+    <p>Nome do novo mês:</p>
+    <input type="text" id="input-novo-mes" placeholder="Ex: Junho 2026" style="width:100%;padding:10px;border:1.5px solid #e0e7ef;border-radius:9px;font-size:0.9rem;font-family:inherit;margin-bottom:14px;outline:none">
+    <div class="modal-actions">
+        <button onclick="fecharModal('modal-novo-mes')" style="background:#eceff1;color:#546e7a">Cancelar</button>
+        <button onclick="criarNovoMes()" style="background:#1565c0;color:white">Criar</button>
+    </div></div>
+</div>
+
+<div class="modal-overlay" id="modal-usuarios">
+    <div class="modal-box" style="max-width:500px"><h3 style="color:#6a1b9a">👤 Gerenciar Usuários</h3>
+    <p id="modal-usuarios-info" style="margin-bottom:10px"></p>
+    <div id="modal-usuarios-lista" style="max-height:380px;overflow-y:auto;margin-bottom:14px"></div>
+    <div class="modal-actions">
+        <button onclick="fecharModal('modal-usuarios')" style="background:#eceff1;color:#546e7a">Fechar</button>
+        <button onclick="sairDaSessao()" style="background:#c62828;color:white">🚪 Sair</button>
+    </div></div>
+</div>
+
+<div class="modal-overlay" id="modal-config-drive">
+    <div class="modal-box" style="max-width:400px"><h3 style="color:#1565c0">☁️ Configurar Google Drive</h3>
+    <p>Salve seu e-mail do Google para conectar mais rápido:</p>
+    <div class="mf"><label>E-mail Google</label><input type="email" id="drive-email-salvo" placeholder="seu@gmail.com"></div>
+    <div class="modal-actions">
+        <button onclick="fecharModal('modal-config-drive')" style="background:#eceff1;color:#546e7a">Cancelar</button>
+        <button onclick="salvarEmailDrive()" style="background:#1565c0;color:white">💾 Salvar e Conectar</button>
+    </div></div>
+</div>
+
+<script>
+
+'use strict';
+let allData = { user:'', meses:{}, usuarios:[] };
+let mesAtual = null;
+let usuarioLogado = null;
+
+function dbMes() { return allData.meses[mesAtual] || { escalas:[], exames:[], corridas:[] }; }
+const hoje = () => new Date().toISOString().slice(0,10);
+function salvarLS() { localStorage.setItem('radiologiaDB_v2', JSON.stringify(allData)); }
+
+/* ── LOGIN ── */
+function iniciarApp() {
+    try { const s = localStorage.getItem('radiologiaDB_v2'); if (s) allData = JSON.parse(s); } catch(e) {}
+    if (!allData.usuarios) allData.usuarios = [];
+    _tentarReconectarDrive();
+    const sessao = sessionStorage.getItem('sbSessao');
+    if (sessao) {
+        try {
+            const u = JSON.parse(sessao);
+            const ainda = allData.usuarios.find(x => x.id === u.id);
+            if (ainda) { usuarioLogado = ainda; iniciarComUsuario(); return; }
+        } catch(e) {}
+    }
+    if (allData.usuarios.length === 0) { iniciarComUsuario(); }
+    else {
+        document.getElementById('login-screen').classList.add('active');
+        document.getElementById('login-subtitle').textContent = 'Entre com sua conta para continuar';
+        try {
+            const creds = localStorage.getItem('sbCreds');
+            if (creds) {
+                const { email, senha } = JSON.parse(creds);
+                document.getElementById('login-email').value = email || '';
+                document.getElementById('login-senha').value = senha || '';
+                document.getElementById('login-lembrar').checked = true;
+            }
+        } catch(e) {}
+    }
+}
+
+function mostrarFormCadastro() {
+    document.getElementById('login-form-area').style.display = 'none';
+    document.getElementById('cadastro-form-area').style.display = 'block';
+}
+function mostrarFormLogin() {
+    document.getElementById('cadastro-form-area').style.display = 'none';
+    document.getElementById('login-form-area').style.display = 'block';
+}
+function fazerLogin() {
+    const email  = document.getElementById('login-email').value.trim().toLowerCase();
+    const senha  = document.getElementById('login-senha').value;
+    const lembrar= document.getElementById('login-lembrar').checked;
+    const u = allData.usuarios.find(x => x.email.toLowerCase() === email && x.senha === senha);
+    if (!u) { document.getElementById('login-erro').style.display = 'block'; return; }
+    document.getElementById('login-erro').style.display = 'none';
+    if (lembrar) localStorage.setItem('sbCreds', JSON.stringify({ email, senha }));
+    else localStorage.removeItem('sbCreds');
+    usuarioLogado = u;
+    sessionStorage.setItem('sbSessao', JSON.stringify(u));
+    document.getElementById('login-screen').classList.remove('active');
+    iniciarComUsuario();
+}
+function fazerCadastro() {
+    const nome     = document.getElementById('cad-nome').value.trim();
+    const email    = document.getElementById('cad-email').value.trim().toLowerCase();
+    const whatsapp = document.getElementById('cad-whatsapp').value.trim();
+    const senha    = document.getElementById('cad-senha').value;
+    const erroEl   = document.getElementById('cad-erro');
+    if (!nome || !email || !senha || senha.length < 4) {
+        erroEl.textContent = 'Preencha todos os campos (senha min. 4 caracteres).';
+        erroEl.style.display = 'block'; return;
+    }
+    if (allData.usuarios.find(x => x.email.toLowerCase() === email)) {
+        erroEl.textContent = 'E-mail ja cadastrado.'; erroEl.style.display = 'block'; return;
+    }
+    erroEl.style.display = 'none';
+    const u = { id: Date.now(), nome, email, whatsapp, senha,
+        role: allData.usuarios.length === 0 ? 'admin' : 'user',
+        criadoEm: new Date().toLocaleDateString('pt-BR') };
+    allData.usuarios.push(u);
+    salvarLS();
+    usuarioLogado = u;
+    sessionStorage.setItem('sbSessao', JSON.stringify(u));
+    document.getElementById('login-screen').classList.remove('active');
+    iniciarComUsuario();
+}
+function iniciarComUsuario() {
+    if (usuarioLogado) {
+        const b = document.getElementById('user-badge');
+        b.textContent = (usuarioLogado.role === 'admin' ? '\u{1F6E1} ' : '\u{1F464} ') + usuarioLogado.nome.split(' ')[0];
+        b.style.display = 'inline-flex';
+        if (!allData.user && usuarioLogado.nome) allData.user = usuarioLogado.nome;
+    }
+    carregar();
+}
+function sairDaSessao() {
+    sessionStorage.removeItem('sbSessao');
+    usuarioLogado = null;
+    fecharModal('modal-usuarios');
+    location.reload();
+}
+function abrirUsuarios() {
+    const infoEl  = document.getElementById('modal-usuarios-info');
+    const listaEl = document.getElementById('modal-usuarios-lista');
+    const isAdmin = usuarioLogado && usuarioLogado.role === 'admin';
+    if (!isAdmin) {
+        const u = usuarioLogado;
+        infoEl.innerHTML = '<b>Minha conta</b>';
+        listaEl.innerHTML = u
+            ? '<div class="user-card"><div class="user-avatar">' + u.nome.charAt(0).toUpperCase() + '</div>'
+              + '<div class="user-info"><div class="user-nome">' + u.nome
+              + ' <span class="role-badge badge-user">Usuario</span></div>'
+              + '<div class="user-sub">\u{1F4E7} ' + u.email + '</div>'
+              + (u.whatsapp ? '<div class="user-sub">\u{1F4F1} ' + u.whatsapp + '</div>' : '')
+              + '</div></div>' : '';
+    } else {
+        infoEl.innerHTML = '<span style="font-size:0.83rem;color:#546e7a"><b>' + allData.usuarios.length + '</b> usuario(s).</span>';
+        listaEl.innerHTML = allData.usuarios.map(function(u) {
+            var waNum  = u.whatsapp ? u.whatsapp.replace(/\D/g,'') : '';
+            var waBt   = waNum ? '<a class="btn-contact btn-wa" href="https://wa.me/55' + waNum + '" target="_blank">\u{1F4AC} WhatsApp</a>' : '';
+            var emBt   = u.email ? '<a class="btn-contact btn-em" href="mailto:' + u.email + '">\u{2709}\uFE0F E-mail</a>' : '';
+            var delBt  = u.id !== (usuarioLogado && usuarioLogado.id)
+                ? '<button onclick="excluirUsuario(' + u.id + ')" style="background:#c62828;color:white;border:none;padding:5px 9px;border-radius:6px;cursor:pointer;font-size:0.72rem;font-weight:600;flex-shrink:0">\u{1F5D1}</button>' : '';
+            return '<div class="user-card">'
+                + '<div class="user-avatar">' + u.nome.charAt(0).toUpperCase() + '</div>'
+                + '<div class="user-info"><div class="user-nome">' + u.nome
+                + ' <span class="role-badge ' + (u.role==='admin'?'badge-admin':'badge-user') + '">' + (u.role==='admin'?'Admin':'Usuario') + '</span></div>'
+                + '<div class="user-sub">\u{1F4E7} ' + u.email + '</div>'
+                + (u.whatsapp ? '<div class="user-sub">\u{1F4F1} ' + u.whatsapp + '</div>' : '')
+                + '<div class="user-sub">\u{1F5D3} ' + (u.criadoEm||'--') + '</div>'
+                + '<div class="contact-btns">' + waBt + emBt + '</div></div>' + delBt + '</div>';
+        }).join('') || '<p style="color:#90a4ae;font-size:0.85rem">Nenhum usuario.</p>';
+    }
+    abrirModal('modal-usuarios');
+}
+function excluirUsuario(id) {
+    if (!confirm('Excluir este usuario?')) return;
+    allData.usuarios = allData.usuarios.filter(function(u){ return u.id !== id; });
+    salvarLS(); abrirUsuarios();
+}
+
+/* ── DADOS ── */
+function salvarDados() {
+    allData.user = document.getElementById('userName').value;
+    if (!mesAtual) return;
+    var m = allData.meses[mesAtual];
+    m.escalas = [];
+    document.querySelectorAll('.escala-item').forEach(function(item) {
+        m.escalas.push({
+            data:  item.querySelector('.sc-data').value,
+            in:    item.querySelector('.sc-in').value,
+            dataF: item.querySelector('.sc-data-f').value,
+            out:   item.querySelector('.sc-out').value
+        });
+    });
+    salvarLS(); render(); driveDebounce();
+}
+function carregar() {
+    try { var s = localStorage.getItem('radiologiaDB_v2'); if (s) allData = JSON.parse(s); } catch(e) {}
+    if (!allData.usuarios) allData.usuarios = [];
+    if (!allData.meses)    allData.meses    = {};
+    if (!Object.keys(allData.meses).length) {
+        var old = localStorage.getItem('radiologiaDB');
+        if (old) {
+            try {
+                var o = JSON.parse(old);
+                var id = 'mes_' + Date.now();
+                allData.meses[id] = { label:'Importado', escalas:o.escalas||[], exames:o.exames||[], corridas:o.corridas||[] };
+                salvarLS();
+            } catch(e) {}
+        }
+    }
+    document.getElementById('userName').value = allData.user || '';
+    popularSelectMes();
+    var ids = Object.keys(allData.meses);
+    if (ids.length > 0) {
+        mesAtual = ids[ids.length - 1];
+        document.getElementById('sel-mes').value = mesAtual;
+        carregarMes();
+    } else {
+        var nid = 'mes_' + Date.now();
+        allData.meses[nid] = { label: labelMesAtual(), escalas:[], exames:[], corridas:[] };
+        mesAtual = nid; popularSelectMes();
+        document.getElementById('sel-mes').value = mesAtual;
+    }
+    preencherDataHoje();
+}
+function popularSelectMes() {
+    document.getElementById('sel-mes').innerHTML = Object.entries(allData.meses)
+        .map(function(e){ return '<option value="' + e[0] + '">' + e[1].label + '</option>'; }).join('');
+}
+function labelMesAtual() {
+    return new Date().toLocaleString('pt-BR',{month:'long',year:'numeric'}).replace(/^\w/,function(c){return c.toUpperCase();});
+}
+function carregarMes() {
+    document.getElementById('lista-escalas').innerHTML = '';
+    var m = allData.meses[mesAtual];
+    if (m) m.escalas.forEach(function(e){ addEscala(e.data, e.in, e.dataF, e.out); });
+    atualizarContadorEscalas(); render();
+}
+function trocarMes()  { mesAtual = document.getElementById('sel-mes').value; carregarMes(); }
+function novoMes()    { document.getElementById('input-novo-mes').value = labelMesAtual(); abrirModal('modal-novo-mes'); }
+function criarNovoMes() {
+    var label = document.getElementById('input-novo-mes').value.trim();
+    if (!label) return;
+    var id = 'mes_' + Date.now();
+    allData.meses[id] = { label:label, escalas:[], exames:[], corridas:[] };
+    mesAtual = id; salvarLS(); popularSelectMes();
+    document.getElementById('sel-mes').value = mesAtual;
+    document.getElementById('lista-escalas').innerHTML = '';
+    render(); fecharModal('modal-novo-mes'); preencherDataHoje();
+}
+function excluirMesAtual() {
+    var ids = Object.keys(allData.meses);
+    if (ids.length <= 1) { alert('Nao e possivel excluir o unico mes.'); return; }
+    confirmarDel('Excluir o mes "' + allData.meses[mesAtual].label + '" e todos os seus dados?', function() {
+        delete allData.meses[mesAtual]; salvarLS(); popularSelectMes();
+        mesAtual = Object.keys(allData.meses).slice(-1)[0];
+        document.getElementById('sel-mes').value = mesAtual;
+        document.getElementById('lista-escalas').innerHTML = ''; carregarMes();
+    });
+}
+function preencherDataHoje() {
+    var h = hoje();
+    document.getElementById('ex-data').value = h;
+    document.getElementById('co-data').value = h;
+}
+
+/* ── TABS ── */
+function tab(e, n) {
+    document.querySelectorAll('.tab-content,.tab-btn').forEach(function(el){ el.classList.remove('active'); });
+    document.getElementById(n).classList.add('active');
+    e.currentTarget.classList.add('active');
+    if (n === 'resumo') renderResumo();
+}
+
+/* ── ESCALAS ── */
+var _escAberto = false;
+function toggleEscalas() {
+    _escAberto = !_escAberto;
+    document.getElementById('escalas-body').style.display = _escAberto ? 'block' : 'none';
+    document.getElementById('btn-toggle-esc').textContent  = _escAberto ? 'Ocultar' : 'Mostrar';
+}
+function atualizarContadorEscalas() {
+    document.getElementById('escala-count').textContent = document.querySelectorAll('.escala-item').length;
+}
+function addEscala(data, inT, dataF, outT) {
+    data = data||''; inT = inT||''; dataF = dataF||''; outT = outT||'';
+    var div = document.createElement('div');
+    div.className = 'escala-item';
+    div.innerHTML =
+        '<div class="form-group"><label>Inicio</label><input type="date" class="sc-data" value="' + data + '" onchange="salvarDados()"></div>'
+      + '<div class="form-group"><label>Hora</label><input type="time" class="sc-in" value="' + inT + '" onchange="salvarDados()"></div>'
+      + '<div class="form-group"><label>Fim</label><input type="date" class="sc-data-f" value="' + dataF + '" onchange="salvarDados()"></div>'
+      + '<div class="form-group"><label>Hora</label><input type="time" class="sc-out" value="' + outT + '" onchange="salvarDados()"></div>'
+      + '<button onclick="this.parentElement.remove();salvarDados();atualizarContadorEscalas()" style="background:#c62828;color:white;border:none;padding:8px;border-radius:7px;cursor:pointer;align-self:flex-end">X</button>';
+    document.getElementById('lista-escalas').appendChild(div);
+    atualizarContadorEscalas();
+}
+
+/* ── EXAMES ── */
+function addExame() {
+    var id    = document.getElementById('ex-id').value;
+    var dados = {
+        data:  document.getElementById('ex-data').value,
+        hora:  document.getElementById('ex-hora').value,
+        setor: document.getElementById('ex-setor').value,
+        nome:  document.getElementById('ex-nome').value,
+        pac:   document.getElementById('ex-pac').value
+    };
+    var m = allData.meses[mesAtual];
+    if (id) {
+        var idx = m.exames.findIndex(function(e){ return e.id == id; });
+        m.exames[idx] = Object.assign({}, m.exames[idx], dados);
+    } else {
+        m.exames.push(Object.assign({ id: Date.now() }, dados));
+    }
+    var dd = dados.data, ss = dados.setor;
+    limparCamposExame(false);
+    document.getElementById('ex-data').value  = dd;
+    document.getElementById('ex-setor').value = ss;
+    salvarDados();
+}
+function editExame(id) {
+    var ex = dbMes().exames.find(function(i){ return i.id == id; });
+    document.getElementById('ex-id').value    = ex.id;
+    document.getElementById('ex-data').value  = ex.data;
+    document.getElementById('ex-hora').value  = ex.hora;
+    document.getElementById('ex-setor').value = ex.setor;
+    document.getElementById('ex-nome').value  = ex.nome;
+    document.getElementById('ex-pac').value   = ex.pac;
+    document.getElementById('btn-save-ex').innerText = 'Atualizar Exame';
+    document.getElementById('btn-cancel-ex').style.display = 'inline-block';
+    abrirFormExame();
+}
+function limparCamposExame(r) {
+    document.getElementById('ex-id').value   = '';
+    document.getElementById('ex-hora').value = '';
+    document.getElementById('ex-nome').value = '';
+    document.getElementById('ex-pac').value  = '';
+    if (r !== false) { document.getElementById('ex-data').value = hoje(); document.getElementById('ex-setor').value = ''; }
+    document.getElementById('btn-save-ex').innerText = 'Salvar Exame';
+    document.getElementById('btn-cancel-ex').style.display = 'none';
+}
+
+/* ── CORRIDAS ── */
+var _pendDados = null, _pendId = null;
+function addCorrida() {
+    var id = document.getElementById('co-id').value;
+    var dados = {
+        data:  document.getElementById('co-data').value,
+        in:    document.getElementById('co-in').value,
+        out:   document.getElementById('co-out').value,
+        km:    document.getElementById('co-km').value,
+        setor: document.getElementById('co-setor').value,
+        tempo: calcDiffSimple(document.getElementById('co-in').value, document.getElementById('co-out').value)
+    };
+    if (!dados.out) { _pendDados = dados; _pendId = id; abrirModal('modal-corrida-aberta'); return; }
+    _persistirCorrida(id, dados);
+}
+function confirmarCorridaAberta() { fecharModal('modal-corrida-aberta'); _persistirCorrida(_pendId, _pendDados); }
+function _persistirCorrida(id, dados) {
+    var m = allData.meses[mesAtual];
+    if (id) {
+        var idx = m.corridas.findIndex(function(c){ return c.id == id; });
+        m.corridas[idx] = Object.assign({}, m.corridas[idx], dados);
+    } else {
+        m.corridas.push(Object.assign({ id: Date.now() }, dados));
+    }
+    limparCamposCorrida(); salvarDados();
+}
+function editCorrida(id) {
+    var c = dbMes().corridas.find(function(i){ return i.id == id; });
+    document.getElementById('co-id').value    = c.id;
+    document.getElementById('co-data').value  = c.data;
+    document.getElementById('co-in').value    = c.in;
+    document.getElementById('co-out').value   = c.out || '';
+    document.getElementById('co-km').value    = c.km;
+    document.getElementById('co-setor').value = c.setor || '';
+    document.getElementById('btn-save-co').innerText = 'Atualizar Corrida';
+    document.getElementById('btn-cancel-co').style.display = 'inline-block';
+    abrirFormCorrida();
+}
+function limparCamposCorrida() {
+    ['co-id','co-in','co-out','co-km','co-setor'].forEach(function(id){ document.getElementById(id).value = ''; });
+    document.getElementById('co-data').value = hoje();
+    document.getElementById('btn-save-co').innerText = 'Salvar Corrida';
+    document.getElementById('btn-cancel-co').style.display = 'none';
+}
+
+/* ── EXCLUSAO ── */
+function del(type, id) {
+    confirmarDel(type === 'exames' ? 'Excluir este exame?' : 'Excluir esta corrida?', function() {
+        allData.meses[mesAtual][type] = allData.meses[mesAtual][type].filter(function(i){ return i.id !== id; });
+        salvarDados();
+    });
+}
+function confirmarDel(msg, cb) {
+    document.getElementById('modal-del-msg').textContent = msg;
+    document.getElementById('modal-del-confirm').onclick = function(){ fecharModal('modal-del'); cb(); };
+    abrirModal('modal-del');
+}
+
+/* ── TOGGLE TABELA EXAMES ── */
+var _tblEx = false;
+function toggleTabelaExames() {
+    _tblEx = !_tblEx;
+    document.getElementById('tbl-exames-wrapper').style.display = _tblEx ? 'block' : 'none';
+    document.getElementById('btn-toggle-tbl-ex').textContent = _tblEx ? 'Ocultar' : 'Mostrar';
+}
+
+/* ── RENDER ── */
+function render() {
+    var d = dbMes();
+    document.querySelector('#tbl-exames tbody').innerHTML = d.exames.map(function(ex) {
+        return '<tr><td>' + fmtD(ex.data) + '</td><td>' + ex.hora + '</td><td>' + ex.setor + '</td><td>' + ex.nome + '</td><td>' + ex.pac + '</td>'
+             + '<td><button class="btn-mini" style="background:#f9a825;color:#000" onclick="editExame(' + ex.id + ')">Editar</button> '
+             + '<button class="btn-mini" style="background:#c62828" onclick="del(\'exames\',' + ex.id + ')">Excluir</button></td></tr>';
+    }).join('');
+    var ce = document.getElementById('exames-count');
+    if (ce) ce.textContent = d.exames.length;
+    document.querySelector('#tbl-corridas tbody').innerHTML = d.corridas.map(function(co) {
+        return '<tr class="' + (!co.out ? 'aberta' : '') + '">'
+             + '<td>' + fmtD(co.data) + '</td><td>' + co.in + '</td>'
+             + '<td>' + (co.out || '<span style="color:#e65100;font-weight:600">em aberto</span>') + '</td>'
+             + '<td>' + co.tempo + '</td><td>' + co.km + '</td><td>' + (co.setor||'') + '</td>'
+             + '<td><button class="btn-mini" style="background:#f9a825;color:#000" onclick="editCorrida(' + co.id + ')">Editar</button> '
+             + '<button class="btn-mini" style="background:#c62828" onclick="del(\'corridas\',' + co.id + ')">Excluir</button></td></tr>';
+    }).join('');
+}
+
+/* ── RESUMO ── */
+function renderResumo() {
+    var d = dbMes();
+    if (!d.escalas.length) {
+        document.getElementById('resumo-conteudo').innerHTML = '<p style="color:#90a4ae;padding:20px">Nenhuma escala cadastrada.</p>';
+        return;
+    }
+    var tKM = 0, tTrab = 0, tEsc = 0, html = '';
+    d.escalas.forEach(function(esc, i) {
+        var em = calcDiffFull(esc.data, esc.in, esc.dataF, esc.out); tEsc += em;
+        var dtIn  = new Date(esc.data  + 'T' + esc.in);
+        var dtOut = new Date(esc.dataF + 'T' + esc.out);
+        var cors  = d.corridas.filter(function(co){ var dt = new Date(co.data+'T'+co.in); return dt>=dtIn && dt<=dtOut; });
+        var km    = cors.reduce(function(s,c){ return s+(parseFloat(c.km)||0); }, 0);
+        var tr    = cors.reduce(function(s,c){ var p=(c.tempo||'0:0').split(':').map(Number); return s+p[0]*60+p[1]; }, 0);
+        tKM += km; tTrab += tr;
+        html += '<div class="resumo-card"><h4>Escala ' + (i+1) + ': ' + fmtD(esc.data) + ' ' + esc.in + ' - ' + fmtD(esc.dataF) + ' ' + esc.out + '</h4>'
+             + '<div class="resumo-row"><span>Periodo sobreaviso</span><span>' + fmtMin(em) + '</span></div>'
+             + '<div class="resumo-row"><span>Corridas</span><span>' + cors.length + '</span></div>'
+             + '<div class="resumo-row"><span>Tempo trabalhado</span><span>' + fmtMin(tr) + '</span></div>'
+             + '<div class="resumo-row"><span>KM rodado</span><span>' + km.toFixed(1) + ' km</span></div></div>';
+    });
+    html += '<div class="resumo-card resumo-total"><h4>TOTAL GERAL DO MES</h4>'
+          + '<div class="resumo-row"><span>Total sobreaviso</span><span>' + fmtMin(tEsc) + '</span></div>'
+          + '<div class="resumo-row"><span>Total trabalhado</span><span>' + fmtMin(tTrab) + '</span></div>'
+          + '<div class="resumo-row"><span>Total KM</span><span>' + tKM.toFixed(1) + ' km</span></div>'
+          + '<div class="resumo-row"><span>Total exames</span><span>' + d.exames.length + '</span></div></div>';
+    document.getElementById('resumo-conteudo').innerHTML = html;
+}
+
+/* ── FORM SCROLL ── */
+function abrirFormExame() {
+    document.querySelectorAll('.tab-content,.tab-btn').forEach(function(el){ el.classList.remove('active'); });
+    document.getElementById('exames').classList.add('active');
+    document.querySelectorAll('.tab-btn')[0].classList.add('active');
+    document.getElementById('exames').scrollIntoView({ behavior:'smooth', block:'start' });
+    setTimeout(function(){ document.getElementById('ex-hora').focus(); }, 400);
+}
+function abrirFormCorrida() {
+    document.querySelectorAll('.tab-content,.tab-btn').forEach(function(el){ el.classList.remove('active'); });
+    document.getElementById('corridas').classList.add('active');
+    document.querySelectorAll('.tab-btn')[1].classList.add('active');
+    document.getElementById('corridas').scrollIntoView({ behavior:'smooth', block:'start' });
+    setTimeout(function(){ document.getElementById('co-in').focus(); }, 400);
+}
+
+/* ── UTILS ── */
+function calcDiffSimple(s, e) {
+    if (!s || !e) return '00:00';
+    var p1 = s.split(':').map(Number), p2 = e.split(':').map(Number);
+    var min = (p2[0]*60+p2[1]) - (p1[0]*60+p1[1]);
+    if (min < 0) min += 1440;
+    return String(Math.floor(min/60)).padStart(2,'0') + ':' + String(min%60).padStart(2,'0');
+}
+function calcDiffFull(d1, t1, d2, t2) {
+    if (!d1||!t1||!d2||!t2) return 0;
+    return Math.floor((new Date(d2+'T'+t2) - new Date(d1+'T'+t1)) / 60000);
+}
+function fmtMin(min) { return Math.floor(min/60) + 'h ' + (min%60) + 'm'; }
+function fmtD(d) { if (!d) return ''; var p = d.split('-'); return p[2]+'/'+p[1]+'/'+p[0]; }
+
+/* ── MODAIS ── */
+function abrirModal(id)  { document.getElementById(id).classList.add('active'); }
+function fecharModal(id) { document.getElementById(id).classList.remove('active'); }
+
+/* ── HISTORICO ── */
+function abrirHistorico() {
+    document.getElementById('hist-lista').innerHTML = Object.entries(allData.meses).map(function(e) {
+        var id = e[0], m = e[1];
+        return '<div class="hist-item">'
+             + '<input type="checkbox" id="chk_' + id + '" value="' + id + '">'
+             + '<label for="chk_' + id + '" style="flex:1;cursor:pointer">'
+             + '<div class="hist-item-title">' + m.label + '</div>'
+             + '<div class="hist-item-sub">' + m.corridas.length + ' corridas - ' + m.exames.length + ' exames - ' + m.escalas.length + ' escalas</div>'
+             + '</label></div>';
+    }).join('');
+    abrirModal('modal-hist');
+}
+function relatorioHistorico(tipo) {
+    var ids = Array.from(document.querySelectorAll('#hist-lista input:checked')).map(function(el){ return el.value; });
+    if (!ids.length) { alert('Selecione ao menos um mes.'); return; }
+    fecharModal('modal-hist'); gerarRelatorioMeses(ids, tipo);
+}
+
+/* ── RELATORIO ── */
+var _filtroTipo = 'pdf', _filtroModo = 'mes';
+function abrirFiltroRelatorio(tipo) {
+    _filtroTipo = tipo; _filtroModo = 'mes';
+    document.getElementById('modal-filtro-titulo').textContent = tipo === 'pdf' ? 'Gerar PDF' : 'Gerar Relatorio';
+    document.getElementById('btn-filtro-gerar').style.background = tipo === 'pdf' ? '#c62828' : '#4527a0';
+    document.getElementById('filtro-data-entrega').value = hoje();
+    alternarFiltroTipo('mes');
+    var m = allData.meses[mesAtual];
+    var escalas = m ? m.escalas : [];
+    document.getElementById('filtro-escalas-lista').innerHTML = escalas.length
+        ? escalas.map(function(e, i) {
+            return '<div class="filtro-opcao"><input type="checkbox" id="fesc_' + i + '" value="' + i + '">'
+                 + '<label for="fesc_' + i + '">Escala ' + (i+1) + ': ' + fmtD(e.data) + ' ' + e.in + ' - ' + fmtD(e.dataF) + ' ' + e.out + '</label></div>';
+          }).join('')
+        : '<p style="color:#90a4ae;font-size:0.85rem;padding:8px">Nenhuma escala cadastrada.</p>';
+    abrirModal('modal-filtro-rel');
+}
+function alternarFiltroTipo(modo) {
+    _filtroModo = modo;
+    document.getElementById('filtro-mes-area').style.display  = modo === 'mes'    ? 'block' : 'none';
+    document.getElementById('filtro-esc-area').style.display  = modo === 'escala' ? 'block' : 'none';
+    document.getElementById('btn-filtro-mes').classList.toggle('ativo', modo === 'mes');
+    document.getElementById('btn-filtro-esc').classList.toggle('ativo', modo === 'escala');
+}
+function gerarComFiltro() {
+    fecharModal('modal-filtro-rel');
+    var dataEntrega = document.getElementById('filtro-data-entrega').value;
+    if (_filtroModo === 'mes') { gerarRelatorioMeses([mesAtual], _filtroTipo, dataEntrega); return; }
+    var checks = Array.from(document.querySelectorAll('#filtro-escalas-lista input[type=checkbox]:checked'));
+    if (!checks.length) { alert('Selecione ao menos uma escala.'); return; }
+    gerarRelatorioMultiEscala(mesAtual, checks.map(function(c){ return parseInt(c.value); }), _filtroTipo, dataEntrega);
+}
+
+function buildLinhas(mesesIds) {
+    var linhas=[],tKM=0,tTrab=0,tEsc=0,periodo=[];
+    mesesIds.forEach(function(mid) {
+        var m = allData.meses[mid]; if (!m) return;
+        if (mesesIds.length > 1) linhas.push({ tipo:'mes', label:m.label });
+        var itens = [];
+        m.corridas.forEach(function(co) {
+            tKM += parseFloat(co.km)||0;
+            var p = (co.tempo||'0:0').split(':').map(Number); tTrab += p[0]*60+p[1];
+            itens.push({ tipo:'corrida', co:co, dt:new Date(co.data+'T'+(co.in||'00:00')) });
+        });
+        m.exames.forEach(function(ex) {
+            itens.push({ tipo:'exame', ex:ex, dt:new Date(ex.data+'T'+(ex.hora||'00:00')) });
+        });
+        /* Ordena tudo por data/hora - assim nenhum exame fica preso a uma
+           corrida por janela de horario (o que fazia exames sumirem do
+           relatorio quando nao havia corrida cobrindo exatamente aquele horario) */
+        itens.sort(function(a,b){ return a.dt - b.dt; });
+        itens.forEach(function(it){ linhas.push(it); });
+        m.escalas.forEach(function(e){ tEsc += calcDiffFull(e.data,e.in,e.dataF,e.out); });
+        m.escalas.forEach(function(e){ periodo.push(fmtD(e.data)+' a '+fmtD(e.dataF)); });
+    });
+    var periodoUniq = periodo.filter(function(v,i,a){ return a.indexOf(v)===i; }).join(' | ');
+    return { linhas:linhas, tKM:tKM, tTrab:tTrab, tEsc:tEsc, periodo:periodoUniq };
+}
+function buildLinhasEscala(mid, escIdx) {
+    var m = allData.meses[mid]; if (!m) return { linhas:[],tKM:0,tTrab:0,tEsc:0,periodo:'' };
+    var esc = m.escalas[escIdx]; if (!esc) return { linhas:[],tKM:0,tTrab:0,tEsc:0,periodo:'' };
+    var dtEscIn  = new Date(esc.data+'T'+esc.in);
+    var dtEscOut = new Date(esc.dataF+'T'+esc.out);
+    var tEsc = calcDiffFull(esc.data,esc.in,esc.dataF,esc.out);
+    var periodo = fmtD(esc.data)+' '+esc.in+' - '+fmtD(esc.dataF)+' '+esc.out;
+    var tKM=0,tTrab=0;
+    var itens = [];
+    m.corridas.filter(function(co){ var dt=new Date(co.data+'T'+co.in); return dt>=dtEscIn && dt<=dtEscOut; })
+    .forEach(function(co) {
+        tKM += parseFloat(co.km)||0;
+        var p = (co.tempo||'0:0').split(':').map(Number); tTrab += p[0]*60+p[1];
+        itens.push({ tipo:'corrida', co:co, dt:new Date(co.data+'T'+(co.in||'00:00')) });
+    });
+    /* Exame entra no relatorio da escala pela data/hora do exame estar dentro
+       do periodo de sobreaviso - nao depende mais de bater com o horario
+       exato de uma corrida (isso fazia exames sumirem do relatorio) */
+    m.exames.filter(function(ex){
+        var dtEx = new Date(ex.data+'T'+(ex.hora||'00:00'));
+        return dtEx>=dtEscIn && dtEx<=dtEscOut;
+    }).forEach(function(ex){ itens.push({ tipo:'exame', ex:ex, dt:new Date(ex.data+'T'+(ex.hora||'00:00')) }); });
+    itens.sort(function(a,b){ return a.dt - b.dt; });
+    return { linhas:itens, tKM:tKM, tTrab:tTrab, tEsc:tEsc, periodo:periodo };
+}
+function gerarRelatorioMultiEscala(mid, idxs, tipo, dataEntrega) {
+    var m = allData.meses[mid]; if (!m) return;
+    var linhas=[],tKM=0,tTrab=0,tEsc=0,periodos=[];
+    idxs.forEach(function(idx) {
+        var r = buildLinhasEscala(mid, idx);
+        if (idxs.length > 1) linhas.push({ tipo:'mes', label:'Escala '+(idx+1)+': '+r.periodo });
+        linhas = linhas.concat(r.linhas);
+        tKM+=r.tKM; tTrab+=r.tTrab; tEsc+=r.tEsc; periodos.push(r.periodo);
+    });
+    var titulo = m.label + (idxs.length===1 ? ' - Escala '+(idxs[0]+1) : ' - '+idxs.length+' Escalas');
+    _renderRelatorio(linhas, titulo, periodos.join(' | '),
+        'SOBREAVISO: '+fmtMin(tEsc)+' | TRABALHADO: '+fmtMin(tTrab)+' | KM: '+tKM.toFixed(1), tipo, dataEntrega||'');
+}
+function gerarRelatorioMeses(mesesIds, tipo, dataEntrega) {
+    var r = buildLinhas(mesesIds);
+    var titulo = mesesIds.map(function(id){ return (allData.meses[id]&&allData.meses[id].label)||''; }).join(', ');
+    _renderRelatorio(r.linhas, titulo, r.periodo,
+        'TOTAL SOBREAVISO: '+fmtMin(r.tEsc)+' | TRABALHADO: '+fmtMin(r.tTrab)+' | KM: '+r.tKM.toFixed(1), tipo, dataEntrega||'');
+}
+
+/* ── EXIBIR RELATORIO EM MODAL FULLSCREEN ── */
+function _exibirRelatorioModal(htmlContent) {
+    var overlay = document.getElementById('modal-relatorio-view');
+    if (!overlay) {
+        overlay = document.createElement('div');
+        overlay.id = 'modal-relatorio-view';
+        overlay.style.cssText = 'position:fixed;inset:0;z-index:9000;background:white;display:flex;flex-direction:column;';
+        overlay.innerHTML =
+            '<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;background:#1565c0;color:white;flex-shrink:0">'
+          + '<span style="font-weight:700;font-size:0.9rem">Relatorio</span>'
+          + '<div style="display:flex;gap:8px">'
+          + '<button id="btn-rel-imprimir" style="background:white;color:#1565c0;border:none;padding:7px 14px;border-radius:7px;font-weight:700;cursor:pointer;font-size:0.8rem">Imprimir</button>'
+          + '<button onclick="document.getElementById(\'modal-relatorio-view\').style.display=\'none\'" '
+          + 'style="background:rgba(255,255,255,0.25);color:white;border:none;padding:7px 14px;border-radius:7px;font-weight:700;cursor:pointer;font-size:0.8rem">Fechar</button>'
+          + '</div></div>'
+          + '<iframe id="rel-iframe" style="flex:1;border:none;width:100%;height:100%"></iframe>';
+        document.body.appendChild(overlay);
+    }
+    overlay.style.display = 'flex';
+    var iframe = document.getElementById('rel-iframe');
+    iframe.srcdoc = htmlContent;
+    document.getElementById('btn-rel-imprimir').onclick = function() {
+        try { iframe.contentWindow.print(); } catch(ex) { alert('Use o menu do navegador para imprimir.'); }
+    };
+}
+
+function _renderRelatorio(linhas, titulo, periodo, resumoTxt, tipo, dataEntrega) {
+    var entStr = dataEntrega ? '<p><b>DATA DE ENTREGA:</b> ' + fmtD(dataEntrega) + '</p>' : '';
+
+    /* PDF - download direto via blob */
+    if (tipo !== 'print') {
+        try {
+            var jsPDF = window.jspdf.jsPDF;
+            var doc = new jsPDF({ orientation:'portrait', unit:'mm', format:'a4' });
+            doc.setFontSize(13); doc.setFont(undefined,'bold');
+            doc.text('RELATORIO MENSAL DE SOBREAVISO', 105, 14, { align:'center' });
+            doc.setFontSize(9); doc.setFont(undefined,'normal');
+            doc.text('PROFISSIONAL: ' + (allData.user||'').toUpperCase(), 105, 21, { align:'center' });
+            doc.text('REFERENCIA: ' + titulo, 105, 26, { align:'center' });
+            var sy = 31;
+            if (periodo) { doc.text('ESCALAS: '+periodo, 105, sy, { align:'center' }); sy+=5; }
+            if (dataEntrega) { doc.setFont(undefined,'bold'); doc.text('ENTREGA: '+fmtD(dataEntrega),105,sy,{align:'center'}); doc.setFont(undefined,'normal'); sy+=5; }
+            var body = linhas.map(function(l) {
+                if (l.tipo==='mes')     return [{ content:l.label, colSpan:5, styles:{fillColor:[21,101,192],textColor:255,fontStyle:'bold'} }];
+                if (l.tipo==='corrida') return [fmtD(l.co.data), l.co.in+'-'+(l.co.out||'?'), l.co.tempo, l.co.km||'', 'SETOR: '+(l.co.setor||'---')];
+                return [fmtD(l.ex.data), l.ex.hora, '', '', '* '+(l.ex.nome||'')+' ('+(l.ex.pac||'')+')'+(l.ex.setor?' - '+l.ex.setor:'')];
+            });
+            doc.autoTable({
+                startY: sy,
+                head: [['DATA','ENTRADA/SAIDA','TEMPO','KM','SETOR / EXAMES']],
+                body: body,
+                styles: { fontSize:7, cellPadding:2 },
+                headStyles: { fillColor:[21,101,192] },
+                didParseCell: function(d) {
+                    if (d.section==='body' && d.row.raw[1] && !Array.isArray(d.row.raw[0])
+                        && String(d.row.raw[1]).indexOf('-')>=0 && d.row.raw[1]!=='') {
+                        d.cell.styles.fillColor = [221,221,221];
+                        d.cell.styles.fontStyle = 'bold';
+                    }
+                }
+            });
+            var y = doc.lastAutoTable.finalY + 5;
+            doc.setFontSize(8); doc.setFont(undefined,'bold');
+            doc.setFillColor(240,244,248); doc.rect(14,y-3,182,9,'F'); doc.rect(14,y-3,182,9);
+            doc.text(resumoTxt, 16, y+2);
+            var pdfBlob = doc.output('blob');
+            var pdfUrl  = URL.createObjectURL(pdfBlob);
+            var link    = document.createElement('a');
+            link.href     = pdfUrl;
+            link.download = 'relatorio_' + titulo.replace(/\s+/g,'_').replace(/[^\w\-]/g,'') + '.pdf';
+            document.body.appendChild(link);
+            link.click();
+            setTimeout(function(){ document.body.removeChild(link); URL.revokeObjectURL(pdfUrl); }, 3000);
+        } catch(ex) { alert('Erro ao gerar PDF: ' + ex.message); }
+        return;
+    }
+
+    /* Relatorio HTML - exibir em modal */
+    var rows = linhas.map(function(l) {
+        if (l.tipo==='mes')     return '<tr style="background:#1565c0;color:white"><td colspan="5" style="padding:6px;font-weight:bold">'+l.label+'</td></tr>';
+        if (l.tipo==='corrida') return '<tr style="background:#ddd;font-weight:bold"><td>'+fmtD(l.co.data)+'</td><td>'+l.co.in+'-'+(l.co.out||'?')+'</td><td>'+l.co.tempo+'</td><td>'+l.co.km+'</td><td>SETOR: '+(l.co.setor||'---')+'</td></tr>';
+        return '<tr><td>'+fmtD(l.ex.data)+'</td><td>'+(l.ex.hora||'')+'</td><td colspan="2"></td><td style="font-size:8pt;font-style:italic">* '+(l.ex.nome||'')+' ('+(l.ex.pac||'')+')'+(l.ex.setor?' - '+l.ex.setor:'')+'</td></tr>';
+    }).join('');
+    var html = '<!DOCTYPE html><html lang="pt-br"><head><meta charset="UTF-8"><title>Relatorio</title>'
+        + '<style>body{font-family:Arial;padding:20px;font-size:9pt}'
+        + '.h{text-align:center;border:2px solid black;padding:10px;margin-bottom:15px}'
+        + 'table{width:100%;border-collapse:collapse}th,td{border:1px solid black;padding:4px;font-size:8pt}'
+        + 'th{background:#1565c0;color:white}.res{border:2px solid black;padding:8px;font-weight:bold;margin-top:10px}'
+        + '@media print{@page{margin:.5cm;size:A4}}</style></head><body>'
+        + '<div class="h"><h2 style="margin:0">RELATORIO MENSAL DE SOBREAVISO</h2>'
+        + '<p><b>PROFISSIONAL:</b> '+(allData.user||'').toUpperCase()+'</p>'
+        + '<p><b>REFERENCIA:</b> '+titulo+'</p>'
+        + (periodo ? '<p><b>ESCALAS:</b> '+periodo+'</p>' : '')
+        + entStr + '</div>'
+        + '<table><thead><tr><th>DATA</th><th>ENTRADA/SAIDA</th><th>TEMPO</th><th>KM</th><th>SETOR / EXAMES</th></tr></thead>'
+        + '<tbody>' + rows + '</tbody></table>'
+        + '<div class="res">' + resumoTxt + '</div>'
+        + '</body></html>';
+    _exibirRelatorioModal(html);
+}
+
+/* ── FICHAS ── */
+function imprimirTodasFichas() {
+    var d = dbMes();
+    if (!d.corridas.length) { alert('Nenhuma corrida registrada neste mes.'); return; }
+    var fichas = d.corridas.map(function(co) {
+        return '<div class="ficha"><div class="fh">FICHA DE CHAMADO / REQUISICAO DE SOBREAVISO</div>'
+             + '<div style="font-size:11pt;line-height:1.8;margin-top:20px">'
+             + '<b>DATA:</b> '+fmtD(co.data)+'<br><b>PROFISSIONAL:</b> '+(allData.user||'').toUpperCase()+'<br>'
+             + '<b>SETOR DO CHAMADO:</b> '+(co.setor||'---')+'<br>'
+             + '<b>ENTRADA:</b> '+co.in+' | <b>SAIDA:</b> '+(co.out||'em aberto')+'<br>'
+             + '<b>TEMPO TOTAL:</b> '+co.tempo+' | <b>KM:</b> '+co.km+'</div>'
+             + '<div style="position:absolute;bottom:30px;width:90%;display:flex;justify-content:space-between">'
+             + '<div style="border-top:1px solid black;width:45%;text-align:center;font-size:8pt">Assinatura Hospital</div>'
+             + '<div style="border-top:1px solid black;width:45%;text-align:center;font-size:8pt">Assinatura Tecnico</div>'
+             + '</div></div>';
+    }).join('');
+    var html = '<!DOCTYPE html><html lang="pt-br"><head><meta charset="UTF-8"><title>Fichas</title>'
+        + '<style>body{font-family:Arial;padding:10px;margin:0}'
+        + '.ficha{width:100%;height:9.2cm;border:1px dashed black;padding:15px;margin-bottom:.2cm;page-break-inside:avoid;position:relative}'
+        + '.fh{text-align:center;font-weight:bold;border-bottom:1px solid black;padding-bottom:5px;margin-bottom:10px;text-transform:uppercase}'
+        + '@media print{@page{margin:.5cm;size:A4}}</style></head><body>'
+        + fichas + '</body></html>';
+    _exibirRelatorioModal(html);
+}
+
+/* ── GOOGLE DRIVE ── */
+var gToken=null, gFolderId=null, gFileId=null, gTimer=null;
+var GF='SobreavisoRadiologia', GN='backup_radiologia_v2.json';
+
+function setStatus(estado, msg) {
+    var el = document.getElementById('backup-status');
+    el.className = estado; el.textContent = msg;
+}
+function driveDebounce() {
+    if (!gToken) return;
+    clearTimeout(gTimer); gTimer = setTimeout(sincronizarDrive, 2000);
+}
+function conectarGDrive() {
+    if (gToken) { sincronizarDrive(); return; }
+    document.getElementById('drive-email-salvo').value = localStorage.getItem('driveEmail')||'';
+    abrirModal('modal-config-drive');
+}
+function salvarEmailDrive() {
+    var email = document.getElementById('drive-email-salvo').value.trim();
+    if (email) localStorage.setItem('driveEmail', email);
+    fecharModal('modal-config-drive'); _iniciarConexaoDrive();
+}
+function _iniciarConexaoDrive() {
+    try {
+        google.accounts.oauth2.initTokenClient({
+            client_id: '622210262026-ns1eiu5l8lshm0mejb54p4e283c6vafh.apps.googleusercontent.com',
+            scope: 'https://www.googleapis.com/auth/drive.file',
+            hint: localStorage.getItem('driveEmail') || undefined,
+            callback: function(resp) {
+                if (resp.error) { setStatus('error','Erro'); return; }
+                gToken = resp.access_token; setStatus('saving','Conectando...');
+                garantirPasta().then(function(){ return buscarArquivo(); }).then(function() {
+                    if (gFileId) { carregarDoDrive(); } else { sincronizarDrive(); }
+                });
+            }
+        }).requestAccessToken();
+    } catch(ex) { setStatus('error','Erro: '+ex.message); }
+}
+function _tentarReconectarDrive() {
+    var email = localStorage.getItem('driveEmail');
+    if (!email) return;
+    var tentarConectar = function() {
+        if (typeof google === 'undefined' || !google.accounts) { setTimeout(tentarConectar, 800); return; }
+        try {
+            google.accounts.oauth2.initTokenClient({
+                client_id: '622210262026-ns1eiu5l8lshm0mejb54p4e283c6vafh.apps.googleusercontent.com',
+                scope: 'https://www.googleapis.com/auth/drive.file',
+                hint: email,
+                prompt: '',
+                callback: function(resp) {
+                    if (resp.error) return;
+                    gToken = resp.access_token;
+                    setStatus('saving','Sincronizando...');
+                    garantirPasta().then(function(){ return buscarArquivo(); }).then(function() {
+                        if (gFileId) { carregarDoDrive(); } else { sincronizarDrive(); }
+                    });
+                }
+            }).requestAccessToken();
+        } catch(ex) { /* silencioso */ }
+    };
+    setTimeout(tentarConectar, 1200);
+}
+function carregarDoDrive() {
+    setStatus('saving','Carregando...');
+    fetch('https://www.googleapis.com/drive/v3/files/'+gFileId+'?alt=media', { headers:{ Authorization:'Bearer '+gToken } })
+    .then(function(r){ if(!r.ok) throw new Error(r.status); return r.json(); })
+    .then(function(dd) {
+        var tL = Object.values(allData.meses).reduce(function(s,m){ return s+m.exames.length+m.corridas.length; },0);
+        var tD = Object.values(dd.meses||{}).reduce(function(s,m){ return s+m.exames.length+m.corridas.length; },0);
+        if (tD > tL && confirm('Drive tem '+tD+' registros, local tem '+tL+'. Carregar dados do Drive?')) {
+            allData = dd; if (!allData.usuarios) allData.usuarios = []; salvarLS();
+            popularSelectMes();
+            var ids = Object.keys(allData.meses); mesAtual = ids[ids.length-1];
+            document.getElementById('sel-mes').value = mesAtual;
+            document.getElementById('userName').value = allData.user||'';
+            document.getElementById('lista-escalas').innerHTML = ''; carregarMes();
+            setStatus('ok','Drive carregado'); return;
+        }
+        sincronizarDrive();
+    })
+    .catch(function(){ setStatus('error','Falha ao carregar'); });
+}
+function garantirPasta() {
+    return fetch("https://www.googleapis.com/drive/v3/files?q=name='"+GF+"' and mimeType='application/vnd.google-apps.folder' and trashed=false&fields=files(id)",
+        { headers:{ Authorization:'Bearer '+gToken } })
+    .then(function(r){ return r.json(); })
+    .then(function(d) {
+        if (d.files && d.files.length) { gFolderId = d.files[0].id; return; }
+        return fetch('https://www.googleapis.com/drive/v3/files', {
+            method:'POST', headers:{ Authorization:'Bearer '+gToken, 'Content-Type':'application/json' },
+            body: JSON.stringify({ name:GF, mimeType:'application/vnd.google-apps.folder' })
+        }).then(function(r){ return r.json(); }).then(function(d){ gFolderId = d.id; });
+    });
+}
+function buscarArquivo() {
+    return fetch("https://www.googleapis.com/drive/v3/files?q=name='"+GN+"' and '"+gFolderId+"' in parents and trashed=false&fields=files(id)",
+        { headers:{ Authorization:'Bearer '+gToken } })
+    .then(function(r){ return r.json(); })
+    .then(function(d){ if (d.files && d.files.length) gFileId = d.files[0].id; });
+}
+function sincronizarDrive() {
+    if (!gToken) return;
+    var tot = Object.values(allData.meses).reduce(function(s,m){ return s+m.exames.length+m.corridas.length; },0);
+    if (tot===0 && gFileId) { setStatus('offline','Sem dados'); return; }
+    setStatus('saving','Salvando...');
+    var content = JSON.stringify(allData);
+    var p;
+    if (gFileId) {
+        p = fetch('https://www.googleapis.com/upload/drive/v3/files/'+gFileId+'?uploadType=media', {
+            method:'PATCH', headers:{ Authorization:'Bearer '+gToken, 'Content-Type':'application/json' }, body:content
+        });
+    } else {
+        var form = new FormData();
+        form.append('metadata', new Blob([JSON.stringify({ name:GN, parents:[gFolderId] })],{ type:'application/json' }));
+        form.append('file',     new Blob([content], { type:'application/json' }));
+        p = fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
+            method:'POST', headers:{ Authorization:'Bearer '+gToken }, body:form
+        }).then(function(r){ return r.json(); }).then(function(d){ gFileId=d.id; return { ok:true }; });
+    }
+    p.then(function(r){ if(r && !r.ok && r.status) throw new Error(r.status); })
+    .then(function(){
+        var t = new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+        setStatus('ok','Drive '+t);
+    })
+    .catch(function(){ setStatus('error','Falha'); });
+}
+function restaurarDoDrive() { abrirModal('modal-rest-drive'); }
+function confirmarRestaurarDrive() {
+    fecharModal('modal-rest-drive');
+    if (gToken) { _forcarCarregarDoDrive(); return; }
+    setStatus('saving','Conectando...');
+    try {
+        google.accounts.oauth2.initTokenClient({
+            client_id:'622210262026-ns1eiu5l8lshm0mejb54p4e283c6vafh.apps.googleusercontent.com',
+            scope:'https://www.googleapis.com/auth/drive.file',
+            hint: localStorage.getItem('driveEmail')||undefined,
+            callback: function(resp) {
+                if (resp.error) { setStatus('error','Erro'); return; }
+                gToken = resp.access_token;
+                garantirPasta().then(function(){ return buscarArquivo(); }).then(function(){ _forcarCarregarDoDrive(); });
+            }
+        }).requestAccessToken();
+    } catch(ex) { setStatus('error','Erro: '+ex.message); }
+}
+function _forcarCarregarDoDrive() {
+    if (!gFileId) { alert('Nenhum backup encontrado no Google Drive.'); setStatus('offline','Sem backup'); return; }
+    setStatus('saving','Restaurando...');
+    fetch('https://www.googleapis.com/drive/v3/files/'+gFileId+'?alt=media', { headers:{ Authorization:'Bearer '+gToken } })
+    .then(function(r){ if(!r.ok) throw new Error(r.status); return r.json(); })
+    .then(function(dd) {
+        allData = dd; if (!allData.usuarios) allData.usuarios = []; salvarLS();
+        popularSelectMes();
+        var ids = Object.keys(allData.meses); mesAtual = ids[ids.length-1];
+        document.getElementById('sel-mes').value = mesAtual;
+        document.getElementById('userName').value = allData.user||'';
+        document.getElementById('lista-escalas').innerHTML = ''; carregarMes();
+        setStatus('ok','Restaurado');
+    })
+    .catch(function(ex){ setStatus('error','Falha'); alert('Erro: '+ex.message); });
+}
+
+/* ── BACKUP LOCAL ── */
+function fazerBackupLocal() {
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([JSON.stringify(allData)],{ type:'application/json' }));
+    a.download = 'backup_sobreaviso_' + hoje() + '.json';
+    document.body.appendChild(a); a.click();
+    setTimeout(function(){ document.body.removeChild(a); }, 2000);
+}
+function restaurarBackup(input) {
+    var reader = new FileReader();
+    reader.onload = function(e) {
+        try {
+            var p = JSON.parse(e.target.result);
+            allData = p.meses ? p : { user:p.user||'', meses:{ ['mes_'+Date.now()]:{ label:'Importado', escalas:p.escalas||[], exames:p.exames||[], corridas:p.corridas||[] } }, usuarios:[] };
+            if (!allData.usuarios) allData.usuarios = [];
+            salvarLS(); location.reload();
+        } catch(ex) { alert('Arquivo invalido.'); }
+    };
+    reader.readAsText(input.files[0]);
+}
+
+iniciarApp();
+
+</script>
+</body>
+</html>

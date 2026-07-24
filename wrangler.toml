@@ -1,0 +1,13 @@
+name = "plantao"
+main = "src/index.js"
+compatibility_date = "2026-07-01"
+
+[assets]
+directory = "./public"
+binding = "ASSETS"
+not_found_handling = "single-page-application"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "plantao"
+database_id = "5bbbfe6c-06c4-42a2-9241-c2740467e9c3"
