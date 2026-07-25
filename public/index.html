@@ -8,7 +8,6 @@
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png">
     <link rel="apple-touch-icon" href="/apple-touch-icon.png">
     <meta name="theme-color" content="#1976d2">
-    <script src="https://accounts.google.com/gsi/client" async defer></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -200,7 +199,7 @@
             </div>
             <div class="header-badges">
                 <div id="user-badge" class="badge-user-pill"></div>
-                <span id="backup-status" class="offline">☁️ Drive</span>
+                <span id="backup-status" class="offline">☁️</span>
             </div>
         </div>
     </div>
@@ -208,14 +207,13 @@
 
 <div class="content-wrap">
     <div class="btn-grid">
-        <button class="btn-action c-blue" onclick="conectarGDrive()"><span class="bi">☁️</span><span class="bl">Conectar Drive</span></button>
-        <button class="btn-action c-green" onclick="restaurarDoDrive()"><span class="bi">⬇️</span><span class="bl">Rest. Drive</span></button>
-        <button class="btn-action c-orange" onclick="fazerBackupLocal()"><span class="bi">💾</span><span class="bl">Backup</span></button>
-        <button class="btn-action c-teal" onclick="document.getElementById('fileInput').click()"><span class="bi">📂</span><span class="bl">Importar</span></button>
+        <button class="btn-action c-orange" onclick="fazerBackupLocal()"><span class="bi">💾</span><span class="bl">Backup local</span></button>
+        <button class="btn-action c-teal" onclick="document.getElementById('fileInput').click()"><span class="bi">📂</span><span class="bl">Rest. Backup local</span></button>
         <button class="btn-action c-violet" onclick="abrirFiltroRelatorio('print')"><span class="bi">📊</span><span class="bl">Relatório</span></button>
         <button class="btn-action c-pink" onclick="imprimirTodasFichas()"><span class="bi">📋</span><span class="bl">Fichas</span></button>
         <button class="btn-action c-gray" onclick="abrirHistorico()"><span class="bi">🕐</span><span class="bl">Histórico</span></button>
-        <button class="btn-action c-purple" onclick="abrirUsuarios()"><span class="bi">👤</span><span class="bl">Usuários</span></button>
+        <button class="btn-action c-purple" onclick="abrirUsuarios()"><span class="bi">👤</span><span class="bl" id="lbl-usuarios">Usuários</span></button>
+        <button class="btn-action c-green" onclick="compartilharApp()"><span class="bi">📤</span><span class="bl">Compartilhar</span></button>
         <input type="file" id="fileInput" style="display:none" onchange="restaurarBackup(this)">
     </div>
 
@@ -354,15 +352,6 @@
     </div></div>
 </div>
 
-<div class="modal-overlay" id="modal-rest-drive">
-    <div class="modal-box danger"><h3>⬇️ Restaurar do Google Drive</h3>
-    <p>Irá <b>sobrescrever os dados locais</b>. Tem certeza?</p>
-    <div class="modal-actions">
-        <button onclick="fecharModal('modal-rest-drive')" style="background:#eceff1;color:#546e7a">Cancelar</button>
-        <button onclick="confirmarRestaurarDrive()" style="background:#c62828;color:white">Sim, restaurar</button>
-    </div></div>
-</div>
-
 <div class="modal-overlay" id="modal-novo-mes">
     <div class="modal-box"><h3 style="color:#1565c0">📅 Novo mês</h3>
     <p>Nome do novo mês:</p>
@@ -374,22 +363,12 @@
 </div>
 
 <div class="modal-overlay" id="modal-usuarios">
-    <div class="modal-box" style="max-width:500px"><h3 style="color:#6a1b9a">👤 Gerenciar Usuários</h3>
+    <div class="modal-box" style="max-width:500px"><h3 id="modal-usuarios-titulo" style="color:#6a1b9a">👤 Gerenciar Usuários</h3>
     <p id="modal-usuarios-info" style="margin-bottom:10px"></p>
     <div id="modal-usuarios-lista" style="max-height:380px;overflow-y:auto;margin-bottom:14px"></div>
     <div class="modal-actions">
         <button onclick="fecharModal('modal-usuarios')" style="background:#eceff1;color:#546e7a">Fechar</button>
         <button onclick="sairDaSessao()" style="background:#c62828;color:white">🚪 Sair</button>
-    </div></div>
-</div>
-
-<div class="modal-overlay" id="modal-config-drive">
-    <div class="modal-box" style="max-width:400px"><h3 style="color:#1565c0">☁️ Configurar Google Drive</h3>
-    <p>Salve seu e-mail do Google para conectar mais rápido:</p>
-    <div class="mf"><label>E-mail Google</label><input type="email" id="drive-email-salvo" placeholder="seu@gmail.com"></div>
-    <div class="modal-actions">
-        <button onclick="fecharModal('modal-config-drive')" style="background:#eceff1;color:#546e7a">Cancelar</button>
-        <button onclick="salvarEmailDrive()" style="background:#1565c0;color:white">💾 Salvar e Conectar</button>
     </div></div>
 </div>
 
@@ -421,8 +400,14 @@ function encerrarSessaoLocal() {
 let _salvarTimer = null;
 function salvarLS() {
     clearTimeout(_salvarTimer);
+    setStatus('saving', 'Salvando...');
     _salvarTimer = setTimeout(function() {
-        api('/dados', { method: 'PUT', body: JSON.stringify({ meses: { _user: allData.user, dados: allData.meses } }) }).catch(function(){});
+        api('/dados', { method: 'PUT', body: JSON.stringify({ meses: { _user: allData.user, dados: allData.meses } }) })
+            .then(function() {
+                var t = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+                setStatus('ok', '\u2601\uFE0F Salvo ' + t);
+            })
+            .catch(function() { setStatus('error', 'Falha ao salvar'); });
     }, 400);
 }
 
@@ -503,6 +488,7 @@ function iniciarComUsuario() {
         const b = document.getElementById('user-badge');
         b.textContent = (usuarioLogado.role === 'admin' ? '\u{1F6E1} ' : '\u{1F464} ') + usuarioLogado.nome.split(' ')[0];
         b.style.display = 'inline-flex';
+        document.getElementById('lbl-usuarios').textContent = usuarioLogado.role === 'admin' ? 'Usuários' : 'Minha conta';
         if (!allData.user && usuarioLogado.nome) allData.user = usuarioLogado.nome;
     }
     carregar();
@@ -516,18 +502,26 @@ function sairDaSessao() {
 function abrirUsuarios() {
     const infoEl  = document.getElementById('modal-usuarios-info');
     const listaEl = document.getElementById('modal-usuarios-lista');
+    const tituloEl = document.getElementById('modal-usuarios-titulo');
     const isAdmin = usuarioLogado && usuarioLogado.role === 'admin';
     if (!isAdmin) {
+        tituloEl.textContent = '\u{1F464} Minha conta';
         const u = usuarioLogado;
-        infoEl.innerHTML = '<b>Minha conta</b>';
-        listaEl.innerHTML = u
+        infoEl.innerHTML = '';
+        listaEl.innerHTML = (u
             ? '<div class="user-card"><div class="user-avatar">' + u.nome.charAt(0).toUpperCase() + '</div>'
               + '<div class="user-info"><div class="user-nome">' + u.nome
               + ' <span class="role-badge badge-user">Usuario</span></div>'
               + '<div class="user-sub">\u{1F4E7} ' + u.email + '</div>'
               + (u.whatsapp ? '<div class="user-sub">\u{1F4F1} ' + u.whatsapp + '</div>' : '')
-              + '</div></div>' : '';
+              + '</div></div>' : '')
+            + '<p style="margin:14px 0 6px;font-size:0.83rem;color:#546e7a"><b>Precisa de ajuda?</b> Fale com o suporte:</p>'
+            + '<div class="contact-btns">'
+            + '<a class="btn-contact btn-wa" href="https://wa.me/5547989088181" target="_blank">\u{1F4AC} WhatsApp</a>'
+            + '<a class="btn-contact btn-em" href="mailto:krasinskyekuroli@gmail.com">\u{2709}\uFE0F E-mail</a>'
+            + '</div>';
     } else {
+        tituloEl.textContent = '\u{1F464} Gerenciar Usuários';
         infoEl.innerHTML = '<span style="font-size:0.83rem;color:#546e7a"><b>' + allData.usuarios.length + '</b> usuario(s).</span>';
         listaEl.innerHTML = allData.usuarios.map(function(u) {
             var waNum  = u.whatsapp ? u.whatsapp.replace(/\D/g,'') : '';
@@ -569,7 +563,7 @@ function salvarDados() {
             out:   item.querySelector('.sc-out').value
         });
     });
-    salvarLS(); render(); driveDebounce();
+    salvarLS(); render();
 }
 function carregar() {
     if (!allData.usuarios) allData.usuarios = [];
@@ -1107,165 +1101,15 @@ function imprimirTodasFichas() {
     _exibirRelatorioModal(html);
 }
 
-/* ── GOOGLE DRIVE ── */
-var gToken=null, gFolderId=null, gFileId=null, gTimer=null;
-var GF='SobreavisoRadiologia', GN='backup_radiologia_v2.json';
-
+/* ── STATUS NA NUVEM ── */
 function setStatus(estado, msg) {
     var el = document.getElementById('backup-status');
     el.className = estado; el.textContent = msg;
 }
-function driveDebounce() {
-    if (!gToken) return;
-    clearTimeout(gTimer); gTimer = setTimeout(sincronizarDrive, 2000);
-}
-function conectarGDrive() {
-    if (gToken) { sincronizarDrive(); return; }
-    document.getElementById('drive-email-salvo').value = localStorage.getItem('driveEmail')||'';
-    abrirModal('modal-config-drive');
-}
-function salvarEmailDrive() {
-    var email = document.getElementById('drive-email-salvo').value.trim();
-    if (email) localStorage.setItem('driveEmail', email);
-    fecharModal('modal-config-drive'); _iniciarConexaoDrive();
-}
-function _iniciarConexaoDrive() {
-    try {
-        google.accounts.oauth2.initTokenClient({
-            client_id: '622210262026-ns1eiu5l8lshm0mejb54p4e283c6vafh.apps.googleusercontent.com',
-            scope: 'https://www.googleapis.com/auth/drive.file',
-            hint: localStorage.getItem('driveEmail') || undefined,
-            callback: function(resp) {
-                if (resp.error) { setStatus('error','Erro'); return; }
-                gToken = resp.access_token; setStatus('saving','Conectando...');
-                garantirPasta().then(function(){ return buscarArquivo(); }).then(function() {
-                    if (gFileId) { carregarDoDrive(); } else { sincronizarDrive(); }
-                });
-            }
-        }).requestAccessToken();
-    } catch(ex) { setStatus('error','Erro: '+ex.message); }
-}
-function _tentarReconectarDrive() {
-    var email = localStorage.getItem('driveEmail');
-    if (!email) return;
-    var tentarConectar = function() {
-        if (typeof google === 'undefined' || !google.accounts) { setTimeout(tentarConectar, 800); return; }
-        try {
-            google.accounts.oauth2.initTokenClient({
-                client_id: '622210262026-ns1eiu5l8lshm0mejb54p4e283c6vafh.apps.googleusercontent.com',
-                scope: 'https://www.googleapis.com/auth/drive.file',
-                hint: email,
-                prompt: '',
-                callback: function(resp) {
-                    if (resp.error) return;
-                    gToken = resp.access_token;
-                    setStatus('saving','Sincronizando...');
-                    garantirPasta().then(function(){ return buscarArquivo(); }).then(function() {
-                        if (gFileId) { carregarDoDrive(); } else { sincronizarDrive(); }
-                    });
-                }
-            }).requestAccessToken();
-        } catch(ex) { /* silencioso */ }
-    };
-    setTimeout(tentarConectar, 1200);
-}
-function carregarDoDrive() {
-    setStatus('saving','Carregando...');
-    fetch('https://www.googleapis.com/drive/v3/files/'+gFileId+'?alt=media', { headers:{ Authorization:'Bearer '+gToken } })
-    .then(function(r){ if(!r.ok) throw new Error(r.status); return r.json(); })
-    .then(function(dd) {
-        var tL = Object.values(allData.meses).reduce(function(s,m){ return s+m.exames.length+m.corridas.length; },0);
-        var tD = Object.values(dd.meses||{}).reduce(function(s,m){ return s+m.exames.length+m.corridas.length; },0);
-        if (tD > tL && confirm('Drive tem '+tD+' registros, local tem '+tL+'. Carregar dados do Drive?')) {
-            allData = dd; if (!allData.usuarios) allData.usuarios = []; salvarLS();
-            popularSelectMes();
-            var ids = Object.keys(allData.meses); mesAtual = ids[ids.length-1];
-            document.getElementById('sel-mes').value = mesAtual;
-            document.getElementById('userName').value = allData.user||'';
-            document.getElementById('lista-escalas').innerHTML = ''; carregarMes();
-            setStatus('ok','Drive carregado'); return;
-        }
-        sincronizarDrive();
-    })
-    .catch(function(){ setStatus('error','Falha ao carregar'); });
-}
-function garantirPasta() {
-    return fetch("https://www.googleapis.com/drive/v3/files?q=name='"+GF+"' and mimeType='application/vnd.google-apps.folder' and trashed=false&fields=files(id)",
-        { headers:{ Authorization:'Bearer '+gToken } })
-    .then(function(r){ return r.json(); })
-    .then(function(d) {
-        if (d.files && d.files.length) { gFolderId = d.files[0].id; return; }
-        return fetch('https://www.googleapis.com/drive/v3/files', {
-            method:'POST', headers:{ Authorization:'Bearer '+gToken, 'Content-Type':'application/json' },
-            body: JSON.stringify({ name:GF, mimeType:'application/vnd.google-apps.folder' })
-        }).then(function(r){ return r.json(); }).then(function(d){ gFolderId = d.id; });
-    });
-}
-function buscarArquivo() {
-    return fetch("https://www.googleapis.com/drive/v3/files?q=name='"+GN+"' and '"+gFolderId+"' in parents and trashed=false&fields=files(id)",
-        { headers:{ Authorization:'Bearer '+gToken } })
-    .then(function(r){ return r.json(); })
-    .then(function(d){ if (d.files && d.files.length) gFileId = d.files[0].id; });
-}
-function sincronizarDrive() {
-    if (!gToken) return;
-    var tot = Object.values(allData.meses).reduce(function(s,m){ return s+m.exames.length+m.corridas.length; },0);
-    if (tot===0 && gFileId) { setStatus('offline','Sem dados'); return; }
-    setStatus('saving','Salvando...');
-    var content = JSON.stringify(allData);
-    var p;
-    if (gFileId) {
-        p = fetch('https://www.googleapis.com/upload/drive/v3/files/'+gFileId+'?uploadType=media', {
-            method:'PATCH', headers:{ Authorization:'Bearer '+gToken, 'Content-Type':'application/json' }, body:content
-        });
-    } else {
-        var form = new FormData();
-        form.append('metadata', new Blob([JSON.stringify({ name:GN, parents:[gFolderId] })],{ type:'application/json' }));
-        form.append('file',     new Blob([content], { type:'application/json' }));
-        p = fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
-            method:'POST', headers:{ Authorization:'Bearer '+gToken }, body:form
-        }).then(function(r){ return r.json(); }).then(function(d){ gFileId=d.id; return { ok:true }; });
-    }
-    p.then(function(r){ if(r && !r.ok && r.status) throw new Error(r.status); })
-    .then(function(){
-        var t = new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
-        setStatus('ok','Drive '+t);
-    })
-    .catch(function(){ setStatus('error','Falha'); });
-}
-function restaurarDoDrive() { abrirModal('modal-rest-drive'); }
-function confirmarRestaurarDrive() {
-    fecharModal('modal-rest-drive');
-    if (gToken) { _forcarCarregarDoDrive(); return; }
-    setStatus('saving','Conectando...');
-    try {
-        google.accounts.oauth2.initTokenClient({
-            client_id:'622210262026-ns1eiu5l8lshm0mejb54p4e283c6vafh.apps.googleusercontent.com',
-            scope:'https://www.googleapis.com/auth/drive.file',
-            hint: localStorage.getItem('driveEmail')||undefined,
-            callback: function(resp) {
-                if (resp.error) { setStatus('error','Erro'); return; }
-                gToken = resp.access_token;
-                garantirPasta().then(function(){ return buscarArquivo(); }).then(function(){ _forcarCarregarDoDrive(); });
-            }
-        }).requestAccessToken();
-    } catch(ex) { setStatus('error','Erro: '+ex.message); }
-}
-function _forcarCarregarDoDrive() {
-    if (!gFileId) { alert('Nenhum backup encontrado no Google Drive.'); setStatus('offline','Sem backup'); return; }
-    setStatus('saving','Restaurando...');
-    fetch('https://www.googleapis.com/drive/v3/files/'+gFileId+'?alt=media', { headers:{ Authorization:'Bearer '+gToken } })
-    .then(function(r){ if(!r.ok) throw new Error(r.status); return r.json(); })
-    .then(function(dd) {
-        allData = dd; if (!allData.usuarios) allData.usuarios = []; salvarLS();
-        popularSelectMes();
-        var ids = Object.keys(allData.meses); mesAtual = ids[ids.length-1];
-        document.getElementById('sel-mes').value = mesAtual;
-        document.getElementById('userName').value = allData.user||'';
-        document.getElementById('lista-escalas').innerHTML = ''; carregarMes();
-        setStatus('ok','Restaurado');
-    })
-    .catch(function(ex){ setStatus('error','Falha'); alert('Erro: '+ex.message); });
+function compartilharApp() {
+    var url = location.origin;
+    var msg = 'Conheça o Plantão, app de controle de escala/sobreaviso! Teste grátis por 30 dias: ' + url;
+    window.open('https://wa.me/?text=' + encodeURIComponent(msg), '_blank');
 }
 
 /* ── BACKUP LOCAL ── */
