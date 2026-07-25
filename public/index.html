@@ -3,7 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>SOBREAVISO RADIOLOGIA</title>
+    <title>Plantão</title>
+    <link rel="manifest" href="/manifest.json">
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png">
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+    <meta name="theme-color" content="#1976d2">
     <script src="https://accounts.google.com/gsi/client" async defer></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
@@ -395,38 +399,58 @@
 let allData = { user:'', meses:{}, usuarios:[] };
 let mesAtual = null;
 let usuarioLogado = null;
+let authToken = localStorage.getItem('sb_token') || null;
 
 function dbMes() { return allData.meses[mesAtual] || { escalas:[], exames:[], corridas:[] }; }
 const hoje = () => new Date().toISOString().slice(0,10);
-function salvarLS() { localStorage.setItem('radiologiaDB_v2', JSON.stringify(allData)); }
+
+async function api(path, opts) {
+    opts = opts || {};
+    const headers = Object.assign({ 'Content-Type': 'application/json' }, opts.headers || {});
+    if (authToken) headers['Authorization'] = 'Bearer ' + authToken;
+    const res = await fetch('/api' + path, Object.assign({}, opts, { headers }));
+    if (res.status === 401) { encerrarSessaoLocal(); throw new Error('Sessao expirada'); }
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.erro || 'Erro na requisicao');
+    return data;
+}
+function encerrarSessaoLocal() {
+    authToken = null; localStorage.removeItem('sb_token');
+    usuarioLogado = null;
+}
+let _salvarTimer = null;
+function salvarLS() {
+    clearTimeout(_salvarTimer);
+    _salvarTimer = setTimeout(function() {
+        api('/dados', { method: 'PUT', body: JSON.stringify({ meses: { _user: allData.user, dados: allData.meses } }) }).catch(function(){});
+    }, 400);
+}
 
 /* ── LOGIN ── */
-function iniciarApp() {
-    try { const s = localStorage.getItem('radiologiaDB_v2'); if (s) allData = JSON.parse(s); } catch(e) {}
-    if (!allData.usuarios) allData.usuarios = [];
-    _tentarReconectarDrive();
-    const sessao = sessionStorage.getItem('sbSessao');
-    if (sessao) {
-        try {
-            const u = JSON.parse(sessao);
-            const ainda = allData.usuarios.find(x => x.id === u.id);
-            if (ainda) { usuarioLogado = ainda; iniciarComUsuario(); return; }
-        } catch(e) {}
+async function iniciarApp() {
+    if (!authToken) { mostrarTelaLogin(); return; }
+    try {
+        const me = await api('/me');
+        usuarioLogado = me.usuario;
+        await carregarDadosDaApi();
+        iniciarComUsuario();
+    } catch (e) {
+        mostrarTelaLogin();
     }
-    if (allData.usuarios.length === 0) { iniciarComUsuario(); }
-    else {
-        document.getElementById('login-screen').classList.add('active');
-        document.getElementById('login-subtitle').textContent = 'Entre com sua conta para continuar';
-        try {
-            const creds = localStorage.getItem('sbCreds');
-            if (creds) {
-                const { email, senha } = JSON.parse(creds);
-                document.getElementById('login-email').value = email || '';
-                document.getElementById('login-senha').value = senha || '';
-                document.getElementById('login-lembrar').checked = true;
-            }
-        } catch(e) {}
-    }
+}
+function mostrarTelaLogin() {
+    document.getElementById('login-screen').classList.add('active');
+    document.getElementById('login-subtitle').textContent = 'Entre com sua conta para continuar';
+}
+async function carregarDadosDaApi() {
+    const r = await api('/dados');
+    const pacote = r.meses || {};
+    allData.user = pacote._user || '';
+    allData.meses = pacote.dados || {};
+    try {
+        const u = await api('/usuarios');
+        allData.usuarios = u.usuarios || [];
+    } catch (e) { allData.usuarios = []; }
 }
 
 function mostrarFormCadastro() {
@@ -437,21 +461,22 @@ function mostrarFormLogin() {
     document.getElementById('cadastro-form-area').style.display = 'none';
     document.getElementById('login-form-area').style.display = 'block';
 }
-function fazerLogin() {
-    const email  = document.getElementById('login-email').value.trim().toLowerCase();
-    const senha  = document.getElementById('login-senha').value;
-    const lembrar= document.getElementById('login-lembrar').checked;
-    const u = allData.usuarios.find(x => x.email.toLowerCase() === email && x.senha === senha);
-    if (!u) { document.getElementById('login-erro').style.display = 'block'; return; }
+async function fazerLogin() {
+    const email = document.getElementById('login-email').value.trim().toLowerCase();
+    const senha = document.getElementById('login-senha').value;
     document.getElementById('login-erro').style.display = 'none';
-    if (lembrar) localStorage.setItem('sbCreds', JSON.stringify({ email, senha }));
-    else localStorage.removeItem('sbCreds');
-    usuarioLogado = u;
-    sessionStorage.setItem('sbSessao', JSON.stringify(u));
-    document.getElementById('login-screen').classList.remove('active');
-    iniciarComUsuario();
+    try {
+        const r = await api('/login', { method: 'POST', body: JSON.stringify({ email, senha }) });
+        authToken = r.token; localStorage.setItem('sb_token', authToken);
+        usuarioLogado = r.usuario;
+        await carregarDadosDaApi();
+        document.getElementById('login-screen').classList.remove('active');
+        iniciarComUsuario();
+    } catch (e) {
+        document.getElementById('login-erro').style.display = 'block';
+    }
 }
-function fazerCadastro() {
+async function fazerCadastro() {
     const nome     = document.getElementById('cad-nome').value.trim();
     const email    = document.getElementById('cad-email').value.trim().toLowerCase();
     const whatsapp = document.getElementById('cad-whatsapp').value.trim();
@@ -461,19 +486,17 @@ function fazerCadastro() {
         erroEl.textContent = 'Preencha todos os campos (senha min. 4 caracteres).';
         erroEl.style.display = 'block'; return;
     }
-    if (allData.usuarios.find(x => x.email.toLowerCase() === email)) {
-        erroEl.textContent = 'E-mail ja cadastrado.'; erroEl.style.display = 'block'; return;
-    }
     erroEl.style.display = 'none';
-    const u = { id: Date.now(), nome, email, whatsapp, senha,
-        role: allData.usuarios.length === 0 ? 'admin' : 'user',
-        criadoEm: new Date().toLocaleDateString('pt-BR') };
-    allData.usuarios.push(u);
-    salvarLS();
-    usuarioLogado = u;
-    sessionStorage.setItem('sbSessao', JSON.stringify(u));
-    document.getElementById('login-screen').classList.remove('active');
-    iniciarComUsuario();
+    try {
+        const r = await api('/cadastro', { method: 'POST', body: JSON.stringify({ nome, email, whatsapp, senha }) });
+        authToken = r.token; localStorage.setItem('sb_token', authToken);
+        usuarioLogado = r.usuario;
+        await carregarDadosDaApi();
+        document.getElementById('login-screen').classList.remove('active');
+        iniciarComUsuario();
+    } catch (e) {
+        erroEl.textContent = e.message || 'Erro ao cadastrar.'; erroEl.style.display = 'block';
+    }
 }
 function iniciarComUsuario() {
     if (usuarioLogado) {
@@ -485,8 +508,8 @@ function iniciarComUsuario() {
     carregar();
 }
 function sairDaSessao() {
-    sessionStorage.removeItem('sbSessao');
-    usuarioLogado = null;
+    api('/logout', { method: 'POST' }).catch(function(){});
+    encerrarSessaoLocal();
     fecharModal('modal-usuarios');
     location.reload();
 }
@@ -526,8 +549,10 @@ function abrirUsuarios() {
 }
 function excluirUsuario(id) {
     if (!confirm('Excluir este usuario?')) return;
-    allData.usuarios = allData.usuarios.filter(function(u){ return u.id !== id; });
-    salvarLS(); abrirUsuarios();
+    api('/usuarios/' + id, { method: 'DELETE' }).then(function() {
+        allData.usuarios = allData.usuarios.filter(function(u){ return u.id !== id; });
+        abrirUsuarios();
+    }).catch(function(e){ alert(e.message || 'Erro ao excluir.'); });
 }
 
 /* ── DADOS ── */
@@ -547,20 +572,8 @@ function salvarDados() {
     salvarLS(); render(); driveDebounce();
 }
 function carregar() {
-    try { var s = localStorage.getItem('radiologiaDB_v2'); if (s) allData = JSON.parse(s); } catch(e) {}
     if (!allData.usuarios) allData.usuarios = [];
     if (!allData.meses)    allData.meses    = {};
-    if (!Object.keys(allData.meses).length) {
-        var old = localStorage.getItem('radiologiaDB');
-        if (old) {
-            try {
-                var o = JSON.parse(old);
-                var id = 'mes_' + Date.now();
-                allData.meses[id] = { label:'Importado', escalas:o.escalas||[], exames:o.exames||[], corridas:o.corridas||[] };
-                salvarLS();
-            } catch(e) {}
-        }
-    }
     document.getElementById('userName').value = allData.user || '';
     popularSelectMes();
     var ids = Object.keys(allData.meses);
