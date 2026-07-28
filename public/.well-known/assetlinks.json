@@ -2,7 +2,7 @@
       "relation": ["delegate_permission/common.handle_all_urls"],
       "target": {
         "namespace": "android_app",
-        "package_name": "dev.workers.krasinskyekuroli.plantao.twa",
-        "sha256_cert_fingerprints": ["7C:79:C7:1D:10:46:CF:61:BD:5F:7B:96:6C:FD:69:B2:EF:0A:32:C3:16:B6:A9:7A:E0:46:73:2F:31:61:C5:48"]
+        "package_name": "br.com.willtech84.plantao",
+        "sha256_cert_fingerprints": ["01:ED:74:BF:D9:CC:D0:CE:4E:43:42:79:E9:7F:3A:8E:AA:3B:10:92:70:D7:57:9A:92:A0:A9:AC:31:1E:84:01"]
       }
     }]
