@@ -1,0 +1,8 @@
+[{
+      "relation": ["delegate_permission/common.handle_all_urls"],
+      "target": {
+        "namespace": "android_app",
+        "package_name": "dev.workers.krasinskyekuroli.plantao.twa",
+        "sha256_cert_fingerprints": ["7C:79:C7:1D:10:46:CF:61:BD:5F:7B:96:6C:FD:69:B2:EF:0A:32:C3:16:B6:A9:7A:E0:46:73:2F:31:61:C5:48"]
+      }
+    }]
