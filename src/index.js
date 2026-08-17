@@ -135,7 +135,8 @@ async function handleApi(req, env, url) {
 
   // GET /dados
   if (path === "/dados" && method === "GET") {
-    const row = await env.DB.prepare("SELECT meses, atualizado_em FROM app_data WHERE id = 1").first();
+    const row = await env.DB.prepare("SELECT meses, atualizado_em FROM app_data WHERE usuario_id = ?")
+      .bind(usuario.id).first();
     return json({ meses: JSON.parse(row?.meses || "{}"), atualizadoEm: row?.atualizado_em || null });
   }
 
@@ -143,8 +144,10 @@ async function handleApi(req, env, url) {
   if (path === "/dados" && method === "PUT") {
     const body = await req.json().catch(() => null);
     if (!body || typeof body.meses !== "object") return erro("Corpo invalido, esperado { meses }.");
-    await env.DB.prepare("UPDATE app_data SET meses = ?, atualizado_em = ? WHERE id = 1")
-      .bind(JSON.stringify(body.meses), new Date().toISOString()).run();
+    await env.DB.prepare(
+      `INSERT INTO app_data (usuario_id, meses, atualizado_em) VALUES (?, ?, ?)
+       ON CONFLICT(usuario_id) DO UPDATE SET meses = excluded.meses, atualizado_em = excluded.atualizado_em`
+    ).bind(usuario.id, JSON.stringify(body.meses), new Date().toISOString()).run();
     return json({ ok: true });
   }
 

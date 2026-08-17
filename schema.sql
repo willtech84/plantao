@@ -21,11 +21,10 @@ CREATE TABLE IF NOT EXISTS sessoes (
 );
 
 -- Guarda o objeto "meses" (escalas/exames/corridas) inteiro, mesmo formato que ja existia no localStorage.
--- Linha unica (id=1) porque o app e de uso compartilhado por toda a equipe.
+-- Uma linha por usuario (cada um ve e edita so os proprios dados).
 CREATE TABLE IF NOT EXISTS app_data (
-  id INTEGER PRIMARY KEY CHECK (id = 1),
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  usuario_id INTEGER NOT NULL UNIQUE REFERENCES usuarios(id) ON DELETE CASCADE,
   meses TEXT NOT NULL DEFAULT '{}',
   atualizado_em TEXT NOT NULL
 );
-
-INSERT OR IGNORE INTO app_data (id, meses, atualizado_em) VALUES (1, '{}', datetime('now'));
