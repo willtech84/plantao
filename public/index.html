@@ -465,6 +465,7 @@ async function fazerLogin() {
         document.getElementById('login-screen').classList.remove('active');
         iniciarComUsuario();
     } catch (e) {
+        document.getElementById('login-erro').textContent = e.message || 'E-mail ou senha incorretos.';
         document.getElementById('login-erro').style.display = 'block';
     }
 }
