@@ -2,6 +2,9 @@
 // Auth por sessao (token em D1), senha com PBKDF2 (Web Crypto, sem libs externas).
 
 const SESSAO_DIAS = 30;
+const SENHA_MIN = 4;
+const RESET_HORAS = 24;
+const RESET_MAX_TENTATIVAS = 5;
 
 function json(data, status = 200) {
   return new Response(JSON.stringify(data), {
@@ -33,6 +36,54 @@ async function hashSenha(senha, salt) {
 }
 function isoDaqui(dias) {
   return new Date(Date.now() + dias * 86400000).toISOString();
+}
+function isoDaquiHoras(horas) {
+  return new Date(Date.now() + horas * 3600000).toISOString();
+}
+function igualConstante(a, b) {
+  if (typeof a !== "string" || typeof b !== "string" || a.length !== b.length) return false;
+  let r = 0;
+  for (let i = 0; i < a.length; i++) r |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return r === 0;
+}
+function tokenDaRequisicao(req) {
+  const auth = req.headers.get("Authorization") || "";
+  return auth.startsWith("Bearer ") ? auth.slice(7) : null;
+}
+
+// Codigo de redefinicao: 8 caracteres sem ambiguos (sem 0/O, 1/I/L)
+const ALFABETO_CODIGO = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
+function gerarCodigo() {
+  let out = "";
+  const limite = 256 - (256 % ALFABETO_CODIGO.length);
+  while (out.length < 8) {
+    const arr = new Uint8Array(16);
+    crypto.getRandomValues(arr);
+    for (const b of arr) {
+      if (b < limite && out.length < 8) out += ALFABETO_CODIGO[b % ALFABETO_CODIGO.length];
+    }
+  }
+  return out;
+}
+function normalizarCodigo(c) {
+  return String(c || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+}
+
+// Cria a tabela de codigos na primeira vez que for usada (nao exige rodar migration manual)
+let tabelaResetOk = false;
+async function garantirTabelaReset(env) {
+  if (tabelaResetOk) return;
+  await env.DB.prepare(
+    `CREATE TABLE IF NOT EXISTS redefinicoes_senha (
+      usuario_id INTEGER PRIMARY KEY REFERENCES usuarios(id) ON DELETE CASCADE,
+      codigo_hash TEXT NOT NULL,
+      codigo_salt TEXT NOT NULL,
+      expira_em TEXT NOT NULL,
+      tentativas INTEGER NOT NULL DEFAULT 0,
+      criado_em TEXT NOT NULL
+    )`
+  ).run();
+  tabelaResetOk = true;
 }
 
 async function usuarioDaSessao(req, env) {
@@ -108,6 +159,38 @@ async function handleApi(req, env, url) {
     return json({ ok: true });
   }
 
+  // POST /redefinir-senha  (publico: e-mail + codigo gerado pelo admin + nova senha)
+  if (path === "/redefinir-senha" && method === "POST") {
+    const body = await req.json().catch(() => ({}));
+    const email = (body.email || "").trim().toLowerCase();
+    const codigo = normalizarCodigo(body.codigo);
+    const nova = body.novaSenha || "";
+    if (!email || !codigo) return erro("Informe o e-mail e o codigo.");
+    if (nova.length < SENHA_MIN) return erro("A nova senha deve ter no minimo " + SENHA_MIN + " caracteres.");
+
+    await garantirTabelaReset(env);
+    const GENERICO = "Codigo invalido ou expirado. Peca um novo codigo ao administrador.";
+    const u = await env.DB.prepare("SELECT id FROM usuarios WHERE email = ?").bind(email).first();
+    if (!u) return erro(GENERICO);
+    const r = await env.DB.prepare("SELECT * FROM redefinicoes_senha WHERE usuario_id = ?").bind(u.id).first();
+    if (!r || r.expira_em <= new Date().toISOString() || r.tentativas >= RESET_MAX_TENTATIVAS) return erro(GENERICO);
+
+    const hash = await hashSenha(codigo, r.codigo_salt);
+    if (!igualConstante(hash, r.codigo_hash)) {
+      await env.DB.prepare("UPDATE redefinicoes_senha SET tentativas = tentativas + 1 WHERE usuario_id = ?").bind(u.id).run();
+      return erro(GENERICO);
+    }
+
+    const salt = randomHex();
+    const novoHash = await hashSenha(nova, salt);
+    await env.DB.batch([
+      env.DB.prepare("UPDATE usuarios SET senha_hash = ?, senha_salt = ? WHERE id = ?").bind(novoHash, salt, u.id),
+      env.DB.prepare("DELETE FROM redefinicoes_senha WHERE usuario_id = ?").bind(u.id),
+      env.DB.prepare("DELETE FROM sessoes WHERE usuario_id = ?").bind(u.id),
+    ]);
+    return json({ ok: true });
+  }
+
   // A partir daqui, todas as rotas exigem sessao valida
   const usuario = await usuarioDaSessao(req, env);
   if (!usuario) return erro("Sessao invalida ou expirada.", 401);
@@ -131,6 +214,50 @@ async function handleApi(req, env, url) {
     if (id === usuario.id) return erro("Voce nao pode excluir a si mesmo.");
     await env.DB.prepare("DELETE FROM usuarios WHERE id = ?").bind(id).run();
     return json({ ok: true });
+  }
+
+  // POST /alterar-senha  (usuario logado troca a propria senha)
+  if (path === "/alterar-senha" && method === "POST") {
+    const body = await req.json().catch(() => ({}));
+    const atual = body.senhaAtual || "";
+    const nova = body.novaSenha || "";
+    if (!atual) return erro("Informe a senha atual.");
+    if (nova.length < SENHA_MIN) return erro("A nova senha deve ter no minimo " + SENHA_MIN + " caracteres.");
+    if (nova === atual) return erro("A nova senha deve ser diferente da atual.");
+
+    const u = await env.DB.prepare("SELECT senha_hash, senha_salt FROM usuarios WHERE id = ?").bind(usuario.id).first();
+    const hashAtual = await hashSenha(atual, u.senha_salt);
+    if (!igualConstante(hashAtual, u.senha_hash)) return erro("Senha atual incorreta.", 403);
+
+    const salt = randomHex();
+    const novoHash = await hashSenha(nova, salt);
+    // Troca a senha e derruba as outras sessoes (outros aparelhos); a atual continua valida
+    await env.DB.batch([
+      env.DB.prepare("UPDATE usuarios SET senha_hash = ?, senha_salt = ? WHERE id = ?").bind(novoHash, salt, usuario.id),
+      env.DB.prepare("DELETE FROM sessoes WHERE usuario_id = ? AND token != ?").bind(usuario.id, tokenDaRequisicao(req) || ""),
+    ]);
+    return json({ ok: true });
+  }
+
+  // POST /usuarios/:id/codigo-reset  (admin gera codigo para o usuario que esqueceu a senha)
+  const mReset = path.match(/^\/usuarios\/(\d+)\/codigo-reset$/);
+  if (mReset && method === "POST") {
+    if (usuario.role !== "admin") return erro("Apenas admin pode gerar codigos.", 403);
+    const alvo = await env.DB.prepare("SELECT id FROM usuarios WHERE id = ?").bind(Number(mReset[1])).first();
+    if (!alvo) return erro("Usuario nao encontrado.", 404);
+
+    await garantirTabelaReset(env);
+    const codigo = gerarCodigo();
+    const salt = randomHex();
+    const hash = await hashSenha(codigo, salt);
+    const expiraEm = isoDaquiHoras(RESET_HORAS);
+    await env.DB.prepare(
+      `INSERT INTO redefinicoes_senha (usuario_id, codigo_hash, codigo_salt, expira_em, tentativas, criado_em)
+       VALUES (?, ?, ?, ?, 0, ?)
+       ON CONFLICT(usuario_id) DO UPDATE SET codigo_hash = excluded.codigo_hash, codigo_salt = excluded.codigo_salt,
+         expira_em = excluded.expira_em, tentativas = 0, criado_em = excluded.criado_em`
+    ).bind(alvo.id, hash, salt, expiraEm, new Date().toISOString()).run();
+    return json({ codigo: codigo.slice(0, 4) + "-" + codigo.slice(4), horas: RESET_HORAS, expiraEm });
   }
 
   // GET /dados

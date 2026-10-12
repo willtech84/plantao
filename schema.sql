@@ -28,3 +28,14 @@ CREATE TABLE IF NOT EXISTS app_data (
   meses TEXT NOT NULL DEFAULT '{}',
   atualizado_em TEXT NOT NULL
 );
+
+-- Codigos de redefinicao de senha (gerados pelo admin; guardados com hash, uso unico).
+-- O Worker tambem cria esta tabela sozinho na primeira vez que for usada (CREATE TABLE IF NOT EXISTS).
+CREATE TABLE IF NOT EXISTS redefinicoes_senha (
+  usuario_id INTEGER PRIMARY KEY REFERENCES usuarios(id) ON DELETE CASCADE,
+  codigo_hash TEXT NOT NULL,
+  codigo_salt TEXT NOT NULL,
+  expira_em TEXT NOT NULL,
+  tentativas INTEGER NOT NULL DEFAULT 0,
+  criado_em TEXT NOT NULL
+);

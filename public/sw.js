@@ -1,4 +1,4 @@
-const CACHE = 'plantao-v1';
+const CACHE = 'plantao-v2';
 const APP_SHELL = ['/', '/manifest.json', '/icon-192.png', '/icon-512.png'];
 
 self.addEventListener('install', (event) => {

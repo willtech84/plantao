@@ -159,6 +159,8 @@
         .login-err { color: #c62828; font-size: 0.8rem; margin-top: 6px; text-align: center; display: none; }
         .login-rem { display: flex; align-items: center; gap: 8px; margin: 8px 0 4px; font-size: 0.82rem; color: #546e7a; cursor: pointer; }
         .login-rem input { width: 16px; height: 16px; cursor: pointer; accent-color: #1565c0; }
+        .login-ok { color: #2e7d32; font-size: 0.8rem; margin-top: 6px; text-align: center; display: none; }
+        .login-link { display: block; width: 100%; background: none; border: none; color: #78909c; font-size: 0.8rem; text-decoration: underline; cursor: pointer; margin-top: 10px; font-family: inherit; }
         .mf { margin-bottom: 12px; }
         .mf label { display: block; font-size: 0.75rem; font-weight: 700; color: #546e7a; margin-bottom: 5px; }
         .mf input { width: 100%; padding: 10px 12px; border: 1.5px solid #e0e7ef; border-radius: 9px; font-size: 0.9rem; font-family: inherit; outline: none; }
@@ -180,6 +182,7 @@
             <p class="login-err" id="login-erro">E-mail ou senha incorretos.</p>
             <button class="btn-lp" onclick="fazerLogin()">Entrar</button>
             <button class="btn-ls" onclick="mostrarFormCadastro()">Criar conta</button>
+            <button class="login-link" onclick="mostrarFormReset()">Esqueci minha senha</button>
         </div>
         <div id="cadastro-form-area" style="display:none">
             <div class="lf"><label>Nome completo</label><input type="text" id="cad-nome" placeholder="Seu nome"></div>
@@ -189,6 +192,18 @@
             <p class="login-err" id="cad-erro">Preencha todos os campos.</p>
             <button class="btn-lp" onclick="fazerCadastro()">Cadastrar</button>
             <button class="btn-ls" onclick="mostrarFormLogin()">Já tenho conta</button>
+        </div>
+        <div id="reset-form-area" style="display:none">
+            <p class="login-sub" style="margin-bottom:14px">Peça um código de redefinição ao administrador e preencha abaixo.</p>
+            <div class="lf"><label>E-mail</label><input type="email" id="rst-email" placeholder="seu@email.com"></div>
+            <div class="lf"><label>Código</label><input type="text" id="rst-codigo" placeholder="XXXX-XXXX" autocomplete="off" autocapitalize="characters"></div>
+            <div class="lf"><label>Nova senha</label><input type="password" id="rst-senha" placeholder="Mínimo 4 caracteres" autocomplete="new-password"></div>
+            <div class="lf"><label>Confirmar nova senha</label><input type="password" id="rst-senha2" autocomplete="new-password" onkeydown="if(event.key==='Enter')redefinirSenha()"></div>
+            <p class="login-err" id="rst-erro"></p>
+            <p class="login-ok" id="rst-ok"></p>
+            <button class="btn-lp" onclick="redefinirSenha()">Redefinir senha</button>
+            <button class="btn-ls" onclick="pedirCodigoSuporte()">💬 Pedir código ao suporte</button>
+            <button class="btn-ls" style="border-color:#cfd8dc;color:#78909c" onclick="mostrarFormLogin()">Voltar ao login</button>
         </div>
     </div>
 </div>
@@ -375,7 +390,32 @@
     <div id="modal-usuarios-lista" style="max-height:380px;overflow-y:auto;margin-bottom:14px"></div>
     <div class="modal-actions">
         <button onclick="fecharModal('modal-usuarios')" style="background:#eceff1;color:#546e7a">Fechar</button>
+        <button onclick="abrirAlterarSenha()" style="background:#6a1b9a;color:white">🔑 Alterar senha</button>
         <button onclick="sairDaSessao()" style="background:#c62828;color:white">🚪 Sair</button>
+    </div></div>
+</div>
+
+<div class="modal-overlay" id="modal-senha">
+    <div class="modal-box"><h3 style="color:#6a1b9a">🔑 Alterar senha</h3>
+    <div class="mf"><label>Senha atual</label><input type="password" id="pw-atual" autocomplete="current-password"></div>
+    <div class="mf"><label>Nova senha</label><input type="password" id="pw-nova" placeholder="Mínimo 4 caracteres" autocomplete="new-password"></div>
+    <div class="mf"><label>Confirmar nova senha</label><input type="password" id="pw-nova2" autocomplete="new-password" onkeydown="if(event.key==='Enter')salvarNovaSenha()"></div>
+    <p class="login-err" id="pw-erro"></p>
+    <p class="login-ok" id="pw-ok"></p>
+    <div class="modal-actions">
+        <button onclick="fecharModal('modal-senha')" style="background:#eceff1;color:#546e7a">Cancelar</button>
+        <button id="pw-salvar" onclick="salvarNovaSenha()" style="background:#6a1b9a;color:white">Salvar</button>
+    </div></div>
+</div>
+
+<div class="modal-overlay" id="modal-codigo">
+    <div class="modal-box"><h3 style="color:#6a1b9a">🔑 Código de redefinição</h3>
+    <p id="codigo-info"></p>
+    <div id="codigo-valor" style="font-size:1.6rem;font-weight:800;letter-spacing:3px;text-align:center;background:#f3e5f5;color:#4a148c;border-radius:10px;padding:14px;margin-bottom:14px;user-select:all"></div>
+    <div class="modal-actions">
+        <button onclick="fecharModal('modal-codigo')" style="background:#eceff1;color:#546e7a">Fechar</button>
+        <button onclick="copiarCodigoReset()" style="background:#1565c0;color:white">📋 Copiar mensagem</button>
+        <button id="codigo-wa" onclick="enviarCodigoWhats()" style="background:#25d366;color:white">💬 WhatsApp</button>
     </div></div>
 </div>
 
@@ -445,18 +485,53 @@ async function carregarDadosDaApi() {
     } catch (e) { allData.usuarios = []; }
 }
 
-function mostrarFormCadastro() {
-    document.getElementById('login-form-area').style.display = 'none';
-    document.getElementById('cadastro-form-area').style.display = 'block';
+function mostrarAreaLogin(qual) {
+    ['login', 'cadastro', 'reset'].forEach(function(a) {
+        document.getElementById(a + '-form-area').style.display = (a === qual) ? 'block' : 'none';
+    });
 }
-function mostrarFormLogin() {
-    document.getElementById('cadastro-form-area').style.display = 'none';
-    document.getElementById('login-form-area').style.display = 'block';
+function mostrarFormCadastro() { mostrarAreaLogin('cadastro'); }
+function mostrarFormLogin()    { mostrarAreaLogin('login'); }
+function mostrarFormReset() {
+    ['rst-codigo', 'rst-senha', 'rst-senha2'].forEach(function(id) { document.getElementById(id).value = ''; });
+    document.getElementById('rst-email').value = document.getElementById('login-email').value.trim();
+    document.getElementById('rst-erro').style.display = 'none';
+    document.getElementById('rst-ok').style.display = 'none';
+    mostrarAreaLogin('reset');
+}
+function pedirCodigoSuporte() {
+    var email = document.getElementById('rst-email').value.trim();
+    var msg = 'Olá! Esqueci minha senha do Plantão e preciso de um código de redefinição.' + (email ? ' Meu e-mail: ' + email : '');
+    window.open('https://wa.me/5547989088181?text=' + encodeURIComponent(msg), '_blank');
+}
+async function redefinirSenha() {
+    var email  = document.getElementById('rst-email').value.trim().toLowerCase();
+    var codigo = document.getElementById('rst-codigo').value.trim();
+    var s1 = document.getElementById('rst-senha').value;
+    var s2 = document.getElementById('rst-senha2').value;
+    var erroEl = document.getElementById('rst-erro');
+    var okEl = document.getElementById('rst-ok');
+    okEl.style.display = 'none';
+    function falha(m) { erroEl.textContent = m; erroEl.style.display = 'block'; }
+    if (!email || !codigo || !s1) return falha('Preencha e-mail, código e nova senha.');
+    if (s1.length < 4) return falha('A nova senha deve ter no mínimo 4 caracteres.');
+    if (s1 !== s2) return falha('As senhas não conferem.');
+    erroEl.style.display = 'none';
+    try {
+        await api('/redefinir-senha', { method: 'POST', body: JSON.stringify({ email: email, codigo: codigo, novaSenha: s1 }) });
+        document.getElementById('login-email').value = email;
+        document.getElementById('login-senha').value = '';
+        mostrarFormLogin();
+        var l = document.getElementById('login-erro');
+        l.style.color = '#2e7d32'; l.textContent = 'Senha redefinida! Entre com a nova senha.'; l.style.display = 'block';
+    } catch (e) {
+        falha(e.message || 'Erro ao redefinir a senha.');
+    }
 }
 async function fazerLogin() {
     const email = document.getElementById('login-email').value.trim().toLowerCase();
     const senha = document.getElementById('login-senha').value;
-    document.getElementById('login-erro').style.display = 'none';
+    (function(l) { l.style.display = 'none'; l.style.color = ''; l.textContent = 'E-mail ou senha incorretos.'; })(document.getElementById('login-erro'));
     try {
         const r = await api('/login', { method: 'POST', body: JSON.stringify({ email, senha }) });
         authToken = r.token; localStorage.setItem('sb_token', authToken);
@@ -534,6 +609,8 @@ function abrirUsuarios() {
             var waNum  = u.whatsapp ? u.whatsapp.replace(/\D/g,'') : '';
             var waBt   = waNum ? '<a class="btn-contact btn-wa" href="https://wa.me/55' + waNum + '" target="_blank">\u{1F4AC} WhatsApp</a>' : '';
             var emBt   = u.email ? '<a class="btn-contact btn-em" href="mailto:' + u.email + '">\u{2709}\uFE0F E-mail</a>' : '';
+            var pwBt   = u.id !== (usuarioLogado && usuarioLogado.id)
+                ? '<button class="btn-contact" style="background:#6a1b9a" onclick="gerarCodigoReset(' + u.id + ')">\u{1F511} Código de senha</button>' : '';
             var delBt  = u.id !== (usuarioLogado && usuarioLogado.id)
                 ? '<button onclick="excluirUsuario(' + u.id + ')" style="background:#c62828;color:white;border:none;padding:5px 9px;border-radius:6px;cursor:pointer;font-size:0.72rem;font-weight:600;flex-shrink:0">\u{1F5D1}</button>' : '';
             return '<div class="user-card">'
@@ -543,10 +620,65 @@ function abrirUsuarios() {
                 + '<div class="user-sub">\u{1F4E7} ' + u.email + '</div>'
                 + (u.whatsapp ? '<div class="user-sub">\u{1F4F1} ' + u.whatsapp + '</div>' : '')
                 + '<div class="user-sub">\u{1F5D3} ' + (u.criadoEm||'--') + '</div>'
-                + '<div class="contact-btns">' + waBt + emBt + '</div></div>' + delBt + '</div>';
+                + '<div class="contact-btns">' + waBt + emBt + pwBt + '</div></div>' + delBt + '</div>';
         }).join('') || '<p style="color:#90a4ae;font-size:0.85rem">Nenhum usuario.</p>';
     }
     abrirModal('modal-usuarios');
+}
+/* ── ALTERAR SENHA / CÓDIGO DE REDEFINIÇÃO ── */
+function abrirAlterarSenha() {
+    ['pw-atual', 'pw-nova', 'pw-nova2'].forEach(function(id) { document.getElementById(id).value = ''; });
+    document.getElementById('pw-erro').style.display = 'none';
+    document.getElementById('pw-ok').style.display = 'none';
+    document.getElementById('pw-salvar').disabled = false;
+    abrirModal('modal-senha');
+}
+async function salvarNovaSenha() {
+    var atual = document.getElementById('pw-atual').value;
+    var n1 = document.getElementById('pw-nova').value;
+    var n2 = document.getElementById('pw-nova2').value;
+    var erroEl = document.getElementById('pw-erro');
+    var okEl = document.getElementById('pw-ok');
+    okEl.style.display = 'none';
+    function falha(m) { erroEl.textContent = m; erroEl.style.display = 'block'; }
+    if (!atual || !n1) return falha('Preencha a senha atual e a nova senha.');
+    if (n1.length < 4) return falha('A nova senha deve ter no mínimo 4 caracteres.');
+    if (n1 !== n2) return falha('As senhas não conferem.');
+    erroEl.style.display = 'none';
+    var btn = document.getElementById('pw-salvar');
+    btn.disabled = true;
+    try {
+        await api('/alterar-senha', { method: 'POST', body: JSON.stringify({ senhaAtual: atual, novaSenha: n1 }) });
+        okEl.textContent = 'Senha alterada com sucesso!'; okEl.style.display = 'block';
+        setTimeout(function() { fecharModal('modal-senha'); }, 1200);
+    } catch (e) {
+        falha(e.message || 'Erro ao alterar a senha.');
+        btn.disabled = false;
+    }
+}
+var _codigoReset = { texto: '', whats: '' };
+async function gerarCodigoReset(id) {
+    var u = allData.usuarios.filter(function(x) { return x.id === id; })[0];
+    if (!u) return;
+    if (!confirm('Gerar um código de redefinição de senha para ' + u.nome + '? Um código anterior deixa de valer.')) return;
+    try {
+        var r = await api('/usuarios/' + id + '/codigo-reset', { method: 'POST' });
+        _codigoReset.texto = 'Olá, ' + u.nome.split(' ')[0] + '! Seu código para redefinir a senha do Plantão é: ' + r.codigo
+            + ' (vale por ' + r.horas + 'h). No app, toque em "Esqueci minha senha", informe seu e-mail, o código e a nova senha.';
+        var num = u.whatsapp ? u.whatsapp.replace(/\D/g, '') : '';
+        _codigoReset.whats = num ? 'https://wa.me/55' + num + '?text=' + encodeURIComponent(_codigoReset.texto) : '';
+        document.getElementById('codigo-info').textContent = 'Código para ' + u.nome + ' — válido por ' + r.horas + 'h, uso único.';
+        document.getElementById('codigo-valor').textContent = r.codigo;
+        document.getElementById('codigo-wa').style.display = _codigoReset.whats ? '' : 'none';
+        abrirModal('modal-codigo');
+    } catch (e) { alert(e.message || 'Erro ao gerar o código.'); }
+}
+function enviarCodigoWhats() { if (_codigoReset.whats) window.open(_codigoReset.whats, '_blank'); }
+function copiarCodigoReset() {
+    var t = _codigoReset.texto;
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(t).then(function() { alert('Mensagem copiada!'); }, function() { prompt('Copie a mensagem:', t); });
+    } else { prompt('Copie a mensagem:', t); }
 }
 function excluirUsuario(id) {
     if (!confirm('Excluir este usuario?')) return;
