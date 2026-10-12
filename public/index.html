@@ -194,15 +194,16 @@
             <button class="btn-ls" onclick="mostrarFormLogin()">Já tenho conta</button>
         </div>
         <div id="reset-form-area" style="display:none">
-            <p class="login-sub" style="margin-bottom:14px">Peça um código de redefinição ao administrador e preencha abaixo.</p>
+            <p class="login-sub" style="margin-bottom:14px">Informe seu e-mail e toque em “Enviar código”. Depois preencha o código recebido e a nova senha.</p>
             <div class="lf"><label>E-mail</label><input type="email" id="rst-email" placeholder="seu@email.com"></div>
+            <button class="btn-lp" id="rst-enviar" style="margin:0 0 14px" onclick="enviarCodigoEmail()">📧 Enviar código por e-mail</button>
             <div class="lf"><label>Código</label><input type="text" id="rst-codigo" placeholder="XXXX-XXXX" autocomplete="off" autocapitalize="characters"></div>
             <div class="lf"><label>Nova senha</label><input type="password" id="rst-senha" placeholder="Mínimo 4 caracteres" autocomplete="new-password"></div>
             <div class="lf"><label>Confirmar nova senha</label><input type="password" id="rst-senha2" autocomplete="new-password" onkeydown="if(event.key==='Enter')redefinirSenha()"></div>
             <p class="login-err" id="rst-erro"></p>
             <p class="login-ok" id="rst-ok"></p>
             <button class="btn-lp" onclick="redefinirSenha()">Redefinir senha</button>
-            <button class="btn-ls" onclick="pedirCodigoSuporte()">💬 Pedir código ao suporte</button>
+            <button class="btn-ls" onclick="pedirCodigoSuporte()">💬 Não recebi — pedir ao suporte</button>
             <button class="btn-ls" style="border-color:#cfd8dc;color:#78909c" onclick="mostrarFormLogin()">Voltar ao login</button>
         </div>
     </div>
@@ -500,7 +501,46 @@ function mostrarFormReset() {
     document.getElementById('rst-email').value = document.getElementById('login-email').value.trim();
     document.getElementById('rst-erro').style.display = 'none';
     document.getElementById('rst-ok').style.display = 'none';
+    clearInterval(_rstTimer);
+    var be = document.getElementById('rst-enviar'); be.disabled = false; be.textContent = '\u{1F4E7} Enviar código por e-mail';
     mostrarAreaLogin('reset');
+}
+var _rstTimer = null;
+function _rstCooldown(seg) {
+    var b = document.getElementById('rst-enviar');
+    clearInterval(_rstTimer);
+    function tick() {
+        if (seg <= 0) { clearInterval(_rstTimer); b.disabled = false; b.textContent = '\u{1F4E7} Enviar código por e-mail'; return; }
+        b.disabled = true; b.textContent = 'Aguarde ' + seg + 's para reenviar'; seg--;
+    }
+    tick(); _rstTimer = setInterval(tick, 1000);
+}
+async function enviarCodigoEmail() {
+    var email = document.getElementById('rst-email').value.trim().toLowerCase();
+    var erroEl = document.getElementById('rst-erro');
+    var okEl = document.getElementById('rst-ok');
+    okEl.style.display = 'none';
+    if (!email) { erroEl.textContent = 'Informe seu e-mail.'; erroEl.style.display = 'block'; return; }
+    erroEl.style.display = 'none';
+    var b = document.getElementById('rst-enviar');
+    b.disabled = true; b.textContent = 'Enviando...';
+    try {
+        var r = await api('/esqueci-senha', { method: 'POST', body: JSON.stringify({ email: email }) });
+        if (r.enviado) {
+            okEl.textContent = 'Se este e-mail estiver cadastrado, enviamos um código (vale ' + (r.minutos || 30) + ' min). Olhe também o spam.';
+            okEl.style.display = 'block';
+            _rstCooldown(60);
+            document.getElementById('rst-codigo').focus();
+        } else {
+            erroEl.textContent = 'O envio automático não está disponível agora. Use “Pedir ao suporte” abaixo.';
+            erroEl.style.display = 'block';
+            b.disabled = false; b.textContent = '\u{1F4E7} Enviar código por e-mail';
+        }
+    } catch (e) {
+        erroEl.textContent = e.message || 'Não foi possível enviar o código.';
+        erroEl.style.display = 'block';
+        b.disabled = false; b.textContent = '\u{1F4E7} Enviar código por e-mail';
+    }
 }
 function pedirCodigoSuporte() {
     var email = document.getElementById('rst-email').value.trim();

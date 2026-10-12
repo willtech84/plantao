@@ -5,6 +5,8 @@ const SESSAO_DIAS = 30;
 const SENHA_MIN = 4;
 const RESET_HORAS = 24;
 const RESET_MAX_TENTATIVAS = 5;
+const RESET_EMAIL_MINUTOS = 30;      // validade do codigo enviado por e-mail
+const RESET_EMAIL_INTERVALO_MS = 120000; // nao reenvia antes de 2 min (evita spam)
 
 function json(data, status = 200) {
   return new Response(JSON.stringify(data), {
@@ -69,6 +71,61 @@ function normalizarCodigo(c) {
   return String(c || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
 }
 
+// ---------- Envio de e-mail via Gmail API ----------
+// Secrets do Worker: GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_REFRESH_TOKEN (escopo gmail.send)
+function emailConfigurado(env) {
+  return !!(env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET && env.GOOGLE_REFRESH_TOKEN);
+}
+let cacheAcessoGoogle = { token: null, exp: 0 };
+async function tokenAcessoGoogle(env) {
+  if (cacheAcessoGoogle.token && cacheAcessoGoogle.exp > Date.now() + 60000) return cacheAcessoGoogle.token;
+  const res = await fetch("https://oauth2.googleapis.com/token", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      client_id: env.GOOGLE_CLIENT_ID,
+      client_secret: env.GOOGLE_CLIENT_SECRET,
+      refresh_token: env.GOOGLE_REFRESH_TOKEN,
+      grant_type: "refresh_token",
+    }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok || !data.access_token) throw new Error("Google token: " + (data.error || res.status));
+  cacheAcessoGoogle = { token: data.access_token, exp: Date.now() + (data.expires_in || 3600) * 1000 };
+  return cacheAcessoGoogle.token;
+}
+function utf8ParaBase64(str) {
+  let bin = "";
+  for (const b of new TextEncoder().encode(str)) bin += String.fromCharCode(b);
+  return btoa(bin);
+}
+function montarMensagem(para, assunto, texto) {
+  const corpo = utf8ParaBase64(texto).replace(/.{1,76}/g, "$&\r\n");
+  const raw = [
+    "To: " + para,
+    "Subject: =?UTF-8?B?" + utf8ParaBase64(assunto) + "?=",
+    "MIME-Version: 1.0",
+    'Content-Type: text/plain; charset="UTF-8"',
+    "Content-Transfer-Encoding: base64",
+    "",
+    corpo,
+  ].join("\r\n");
+  return btoa(raw).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+async function enviarEmail(env, para, assunto, texto) {
+  if (!/^[^\s@<>",;]+@[^\s@<>",;]+$/.test(para)) throw new Error("E-mail de destino invalido");
+  const acesso = await tokenAcessoGoogle(env);
+  const res = await fetch("https://gmail.googleapis.com/gmail/v1/users/me/messages/send", {
+    method: "POST",
+    headers: { Authorization: "Bearer " + acesso, "Content-Type": "application/json" },
+    body: JSON.stringify({ raw: montarMensagem(para, assunto, texto) }),
+  });
+  if (!res.ok) {
+    if (res.status === 401) cacheAcessoGoogle = { token: null, exp: 0 };
+    throw new Error("Gmail send: HTTP " + res.status);
+  }
+}
+
 // Cria a tabela de codigos na primeira vez que for usada (nao exige rodar migration manual)
 let tabelaResetOk = false;
 async function garantirTabelaReset(env) {
@@ -100,7 +157,7 @@ function semSenha(u) {
   return { id: u.id, nome: u.nome, email: u.email, whatsapp: u.whatsapp, role: u.role, criadoEm: u.criado_em };
 }
 
-async function handleApi(req, env, url) {
+async function handleApi(req, env, url, ctx) {
   const path = url.pathname.replace(/^\/api/, "");
   const method = req.method;
 
@@ -157,6 +214,48 @@ async function handleApi(req, env, url) {
     const token = auth.startsWith("Bearer ") ? auth.slice(7) : null;
     if (token) await env.DB.prepare("DELETE FROM sessoes WHERE token = ?").bind(token).run();
     return json({ ok: true });
+  }
+
+  // POST /esqueci-senha  (publico: envia um codigo para o e-mail cadastrado)
+  // A resposta nao revela se o e-mail existe; so informa se o envio automatico esta disponivel.
+  if (path === "/esqueci-senha" && method === "POST") {
+    const body = await req.json().catch(() => ({}));
+    const email = (body.email || "").trim().toLowerCase();
+    if (!email) return erro("Informe o e-mail.");
+    if (!emailConfigurado(env)) return json({ ok: true, enviado: false });
+
+    await garantirTabelaReset(env);
+    const u = await env.DB.prepare("SELECT id, nome FROM usuarios WHERE email = ?").bind(email).first();
+    if (u) {
+      const r = await env.DB.prepare("SELECT criado_em FROM redefinicoes_senha WHERE usuario_id = ?").bind(u.id).first();
+      const recente = r && Date.now() - Date.parse(r.criado_em) < RESET_EMAIL_INTERVALO_MS;
+      if (!recente) {
+        const codigo = gerarCodigo();
+        const salt = randomHex();
+        const hash = await hashSenha(codigo, salt);
+        const expiraEm = new Date(Date.now() + RESET_EMAIL_MINUTOS * 60000).toISOString();
+        await env.DB.prepare(
+          `INSERT INTO redefinicoes_senha (usuario_id, codigo_hash, codigo_salt, expira_em, tentativas, criado_em)
+           VALUES (?, ?, ?, ?, 0, ?)
+           ON CONFLICT(usuario_id) DO UPDATE SET codigo_hash = excluded.codigo_hash, codigo_salt = excluded.codigo_salt,
+             expira_em = excluded.expira_em, tentativas = 0, criado_em = excluded.criado_em`
+        ).bind(u.id, hash, salt, expiraEm, new Date().toISOString()).run();
+
+        const primeiroNome = (u.nome || "").split(" ")[0] || "";
+        const texto =
+          "Ol\u00e1" + (primeiroNome ? ", " + primeiroNome : "") + "!\n\n" +
+          "Seu c\u00f3digo para redefinir a senha do Plant\u00e3o \u00e9:\n\n" +
+          "    " + codigo.slice(0, 4) + "-" + codigo.slice(4) + "\n\n" +
+          "Ele vale por " + RESET_EMAIL_MINUTOS + " minutos e s\u00f3 pode ser usado uma vez.\n" +
+          'No app, volte \u00e0 tela "Esqueci minha senha", informe seu e-mail, o c\u00f3digo e a nova senha.\n\n' +
+          "Se voc\u00ea n\u00e3o pediu isso, ignore este e-mail: sua senha continua a mesma.\n";
+        // Envia em segundo plano para a resposta ter o mesmo tempo exista o e-mail ou nao
+        const envio = enviarEmail(env, email, "Seu c\u00f3digo para redefinir a senha - Plant\u00e3o", texto)
+          .catch((e) => console.error("Falha ao enviar e-mail de redefinicao:", e && e.message ? e.message : e));
+        if (ctx && ctx.waitUntil) ctx.waitUntil(envio);
+      }
+    }
+    return json({ ok: true, enviado: true, minutos: RESET_EMAIL_MINUTOS });
   }
 
   // POST /redefinir-senha  (publico: e-mail + codigo gerado pelo admin + nova senha)
@@ -283,11 +382,11 @@ async function handleApi(req, env, url) {
 }
 
 export default {
-  async fetch(req, env) {
+  async fetch(req, env, ctx) {
     const url = new URL(req.url);
     if (url.pathname.startsWith("/api/")) {
       try {
-        return await handleApi(req, env, url);
+        return await handleApi(req, env, url, ctx);
       } catch (e) {
         return erro("Erro interno: " + (e && e.message ? e.message : String(e)), 500);
       }
