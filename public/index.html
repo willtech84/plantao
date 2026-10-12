@@ -479,10 +479,13 @@ async function carregarDadosDaApi() {
     const pacote = r.meses || {};
     allData.user = pacote._user || '';
     allData.meses = pacote.dados || {};
-    try {
-        const u = await api('/usuarios');
-        allData.usuarios = u.usuarios || [];
-    } catch (e) { allData.usuarios = []; }
+    allData.usuarios = [];
+    if (usuarioLogado && usuarioLogado.role === 'admin') {
+        try {
+            const u = await api('/usuarios');
+            allData.usuarios = u.usuarios || [];
+        } catch (e) { allData.usuarios = []; }
+    }
 }
 
 function mostrarAreaLogin(qual) {

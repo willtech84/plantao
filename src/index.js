@@ -202,6 +202,7 @@ async function handleApi(req, env, url) {
 
   // GET /usuarios
   if (path === "/usuarios" && method === "GET") {
+    if (usuario.role !== "admin") return erro("Apenas admin pode listar usuarios.", 403);
     const { results } = await env.DB.prepare("SELECT id, nome, email, whatsapp, role, criado_em FROM usuarios ORDER BY id").all();
     return json({ usuarios: results.map(semSenha) });
   }
